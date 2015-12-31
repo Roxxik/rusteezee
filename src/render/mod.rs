@@ -147,9 +147,15 @@ impl Renderer {
         let texture = glium::texture::SrgbTexture2d::new(&self.display, image).unwrap();
 
 
+        let vb_cube = glium::VertexBuffer::new(&self.display, &cube::VERTICES).unwrap();
+        let ib_cube = glium::IndexBuffer::new(&self.display, glium::index::PrimitiveType::TrianglesList, &cube::INDICES).unwrap();
+
+        let vb_wire = glium::VertexBuffer::new(&self.display, &wire_cube::VERTICES).unwrap();
+        let ib_wire = glium::IndexBuffer::new(&self.display, glium::index::PrimitiveType::LinesList, &wire_cube::INDICES).unwrap();
         loop {
             let mut target = self.display.draw();
             target.clear_color_and_depth((0.0, 0.0, 1.0, 1.0), 1.0);
+            //target.clear_depth(1.0);
 
             let perspective: [[f32; 4]; 4] = self.get_perspective(&target).into();
             let view: [[f32; 4]; 4] = self.camera.view_matrix().into();
@@ -160,20 +166,15 @@ impl Renderer {
                 let cubes_buffer = glium::vertex::VertexBuffer::new(&self.display, &cubes).unwrap();
 
                 let wires: Vec<Position> = self.game.stones.into_iter().min().map(|x| Position { cube_pos: (0, 0, x as i32) }).into_iter().collect();
-                let wires_buffer = glium::vertex::VertexBuffer::dynamic(&self.display, &wires).unwrap();
+                let wires_buffer = glium::vertex::VertexBuffer::new(&self.display, &wires).unwrap();
 
-                let vb_cube = glium::VertexBuffer::new(&self.display, &cube::VERTICES).unwrap();
-                let ib_cube = glium::IndexBuffer::new(&self.display, glium::index::PrimitiveType::TrianglesList, &cube::INDICES).unwrap();
-
-                let vb_wire = glium::VertexBuffer::new(&self.display, &wire_cube::VERTICES).unwrap();
-                let ib_wire = glium::IndexBuffer::new(&self.display, glium::index::PrimitiveType::LinesList, &wire_cube::INDICES).unwrap();
 
                 target.draw(
                     (&vb_cube, cubes_buffer.per_instance().unwrap()),
                     &ib_cube,
                     &self.cube_program,
                     &uniform! {
-                        model: self::block::MODEL,
+                        model: block::MODEL,
                         view: view,
                         perspective: perspective,
                         tex: glium::uniforms::Sampler::new(&texture)
@@ -191,7 +192,7 @@ impl Renderer {
                 ).unwrap();
 
                 if self.stats {
-                    self.text.draw(&mut target, &*format!(
+                    self.text.draw(&mut target, &format!(
                         "x: {}, y: {}, z: {}, phi: {}, theta: {}",
                         self.camera.pos.x,
                         self.camera.pos.y,

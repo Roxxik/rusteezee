@@ -52,8 +52,8 @@ impl Direction {
     pub fn to_vec(&self, phi: Deg<f32>) -> Vector3<f32> {
         use self::Direction::*;
         Vector3::from(match *self {
-            Up       => (0.0,  1.0 * CAM_POS_STEP, 0.0),
-            Down     => (0.0, -1.0 * CAM_POS_STEP, 0.0),
+            Up       => (0.0,  1.0, 0.0),
+            Down     => (0.0, -1.0, 0.0),
             Forward  |
             Backward |
             Left     |
@@ -61,16 +61,16 @@ impl Direction {
                 if let Some(a) = self.to_angle() {
                     let a = phi + a;
                     (
-                        a.sin() * CAM_POS_STEP,
+                        a.sin(),
                         0.0,
-                        -a.cos() * CAM_POS_STEP,
+                        -a.cos(),
                     )
                 } else {
                     (0.0, 0.0, 0.0)
                 }
             },
             _ => (0.0, 0.0, 0.0),
-        })
+        }) * CAM_POS_STEP
     }
 
     fn to_angle(&self) -> Option<Deg<f32>> {
