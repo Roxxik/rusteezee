@@ -1,103 +1,45 @@
 mod block;
 mod camera;
 mod cube;
+mod error;
+mod event;
 mod shader;
 mod text;
 mod texture;
 mod wire_cube;
 
-mod position {
-    #[derive(Clone, Copy, Debug)]
-    pub struct Position {
-        pub cube_pos: (i32, i32, i32),
-    }
-    implement_vertex!(Position, cube_pos);
+
+#[derive(Clone, Copy, Debug)]
+pub struct Position {
+    pub cube_pos: (i32, i32, i32),
+}
+implement_vertex!(Position, cube_pos);
+
+
+#[derive(Clone, Copy, Debug)]
+pub enum Direction {
+    Up,
+    Down,
+    Left,
+    Right,
 }
 
-use std::error::Error;
-use std::fmt;
+
 
 use image;
 use cgmath::{ Point, Point3, Matrix4 };
-use glium::{ self, glutin, DisplayBuild, Surface, GliumCreationError };
-use glium::program::ProgramCreationError;
+use glium::{ self, glutin, DisplayBuild, Surface };
+use glium::program::Program;
 
 use self::camera::Camera;
-use self::position::Position;
-use self::text::{ Text, TextCreationError };
+use self::text::Text;
+use self::error::RenderCreationError;
 use game::GameState;
-
-
-#[derive(Debug)]
-pub enum RenderCreationError<T> {
-    ContextCreationError(GliumCreationError<T>),
-    ProgramCreationError(ProgramCreationError),
-    TextCreationError(TextCreationError),
-}
-
-impl<T: Error> fmt::Display for RenderCreationError<T> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        use self::RenderCreationError::*;
-        match *self {
-            ContextCreationError(ref s) =>
-                write!(fmt, "{}: {}", self.description(), s),
-            ProgramCreationError(ref s) =>
-                write!(fmt, "{}: {}", self.description(), s),
-            TextCreationError(ref s) =>
-                write!(fmt, "{}: {}", self.description(), s),
-        }
-    }
-}
-
-impl<T: Error> Error for RenderCreationError<T> {
-    fn description(&self) -> &str {
-        use self::RenderCreationError::*;
-        match *self {
-            ContextCreationError(_) =>
-                "Error while creating the Render Context",
-            ProgramCreationError(_) =>
-                "Error while compiling the Shader",
-            TextCreationError(_) =>
-                "Error while creating the Fontrenderer",
-        }
-    }
-
-    #[inline]
-    fn cause(&self) -> Option<&Error> {
-        use self::RenderCreationError::*;
-        match *self {
-            ContextCreationError(ref s) => Some(s),
-            ProgramCreationError(ref s) => Some(s),
-            TextCreationError(ref s) => Some(s),
-        }
-    }
-}
-
-impl<T: Error> From<GliumCreationError<T>> for RenderCreationError<T> {
-    fn from(err: GliumCreationError<T>) -> Self {
-        use self::RenderCreationError::*;
-        ContextCreationError(err)
-    }
-}
-
-impl<T: Error> From<ProgramCreationError> for RenderCreationError<T> {
-    fn from(err: ProgramCreationError) -> Self {
-        use self::RenderCreationError::*;
-        ProgramCreationError(err)
-    }
-}
-
-impl<T: Error> From<TextCreationError> for RenderCreationError<T> {
-    fn from(err: TextCreationError) -> Self {
-        use self::RenderCreationError::*;
-        TextCreationError(err)
-    }
-}
 
 pub struct Renderer {
     display: glium::Display,
-    cube_program: glium::program::Program,
-    wire_program: glium::program::Program,
+    cube_program: Program,
+    wire_program: Program,
     camera: Camera,
     //TODO make fov in degree
     fov: f32, //in radians
@@ -112,19 +54,19 @@ impl Renderer {
         let display = try!(glutin::WindowBuilder::new()
             .with_depth_buffer(24)
             .build_glium());
-        let cube_prog = try!(glium::program::Program::from_source(
+        let cube_prog = try!(Program::from_source(
             &display,
             shader::CUBE_VERTEX,
             shader::CUBE_FRAGMENT,
             None,
         ));
-        let wire_prog = try!(glium::program::Program::from_source(
+        let wire_prog = try!(Program::from_source(
             &display,
             shader::WIRE_VERTEX,
             shader::WIRE_FRAGMENT,
             None,
         ));
-        let text = try!(Text::new(&display, "/usr/share/fonts/TTF/NotoSans-Regular.ttf"));
+        let text = try!(Text::new(&display, "/usr/share/fonts/TTF/NotoSans-Regular.ttf", 24));
         Ok(Renderer {
             display: display,
             cube_program: cube_prog,
@@ -139,6 +81,7 @@ impl Renderer {
     }
 
     pub fn game_loop(mut self) {
+
         let image = image::load(::std::io::Cursor::new(&include_bytes!(
             "../../assets/textures/dirt.png"
         )[..]),image::PNG).unwrap().to_rgba();
@@ -152,6 +95,7 @@ impl Renderer {
 
         let vb_wire = glium::VertexBuffer::new(&self.display, &wire_cube::VERTICES).unwrap();
         let ib_wire = glium::IndexBuffer::new(&self.display, glium::index::PrimitiveType::LinesList, &wire_cube::INDICES).unwrap();
+
         loop {
             let mut target = self.display.draw();
             target.clear_color_and_depth((0.0, 0.0, 1.0, 1.0), 1.0);
