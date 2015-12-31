@@ -1,10 +1,26 @@
-use super::Direction;
+use glium::{ self, glutin };
+
+use super::{ HDirection, VDirection };
 
 pub enum Event {
-    CameraTurn(Direction),
-    Move(Direction),
+    CameraTurn {
+        dir: HDirection,
+        toogle: bool,
+    },
+    Move {
+        dir: HDirection,
+        toogle: bool,
+    },
+    Fly {
+        dir: VDirection,
+        toogle: bool,
+    },
     Jump,
-    Sneak(bool),
-    PlaceBlock(usize),
-    RemoveBlock(usize),
+    Sneak {
+        toogle: bool,
+    },
+    ToogleBlock {
+        block: usize,
+    },
+    Exit,
 }

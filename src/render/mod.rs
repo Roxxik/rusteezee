@@ -17,23 +17,29 @@ implement_vertex!(Position, cube_pos);
 
 
 #[derive(Clone, Copy, Debug)]
-pub enum Direction {
-    Up,
-    Down,
+pub enum HDirection {
+    Forth,
+    Back,
     Left,
     Right,
 }
 
-
+#[derive(Clone, Copy, Debug)]
+pub enum VDirection {
+    Up,
+    Down,
+}
 
 use image;
 use cgmath::{ Point, Point3, Matrix4 };
 use glium::{ self, glutin, DisplayBuild, Surface };
 use glium::program::Program;
+use glium::glutin::Event as GlEvent;
 
 use self::camera::Camera;
 use self::text::Text;
 use self::error::RenderCreationError;
+use self::event::Event;
 use game::GameState;
 
 pub struct Renderer {
@@ -88,7 +94,9 @@ impl Renderer {
         let image_dimensions = image.dimensions();
         let image = glium::texture::RawImage2d::from_raw_rgba_reversed(image.into_raw(), image_dimensions);
         let texture = glium::texture::SrgbTexture2d::new(&self.display, image).unwrap();
-
+        let texture_sampler = glium::uniforms::Sampler::new(&texture)
+            .magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest)
+            .minify_filter(glium::uniforms::MinifySamplerFilter::Nearest);
 
         let vb_cube = glium::VertexBuffer::new(&self.display, &cube::VERTICES).unwrap();
         let ib_cube = glium::IndexBuffer::new(&self.display, glium::index::PrimitiveType::TrianglesList, &cube::INDICES).unwrap();
@@ -121,9 +129,7 @@ impl Renderer {
                         model: block::MODEL,
                         view: view,
                         perspective: perspective,
-                        tex: glium::uniforms::Sampler::new(&texture)
-                            .magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest)
-                            .minify_filter(glium::uniforms::MinifySamplerFilter::Nearest)
+                        tex: texture_sampler,
                     },
                     &params
                 ).unwrap();
@@ -182,6 +188,13 @@ impl Renderer {
             //backface_culling: glium::draw_parameters::BackfaceCullingMode::CullClockwise,
             polygon_mode: if self.fill { Fill } else { Line },
             .. Default::default()
+        }
+    }
+
+    fn convert(ev: GlEvent) -> Option<Event> {
+        use self::event::Event::*;
+        match ev {
+            _ => None,
         }
     }
 
