@@ -1,8 +1,8 @@
 cube data structure
 texture for every side
-better key handling
-
-refactoring
+cube selecting
+    placing/removing blocks
+physics/collision detection
 
 
 
@@ -10,4 +10,4 @@ refactoring
 
 //minecraft compat
 north/south slightly lighter
-selected cube is thicker and is not opaque
+selected cube line is thicker and not opaque
