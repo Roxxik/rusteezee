@@ -5,11 +5,7 @@ extern crate cgmath;
 extern crate image;
 extern crate bit_set;
 
-
-
-use cgmath::Angle;
-use cgmath::Point;
-use cgmath::Point3;
+use std::error::Error;
 
 mod render;
 mod game;
@@ -35,8 +31,6 @@ use render::Renderer;
 //    Face::Bottom,
 //];
 
-
-//"/usr/share/fonts/TTF/NotoSans-Regular.ttf"
 fn main() {
     match Renderer::new() {
         Ok(r)  => { r.game_loop(); },

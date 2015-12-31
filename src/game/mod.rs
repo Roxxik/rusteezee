@@ -10,4 +10,8 @@ impl GameState {
             stones: BitSet::new(),
         }
     }
+
+    pub fn flip_stone(&mut self, value: usize) {
+        if self.stones.contains(&value) { self.stones.remove(&value); } else { self.stones.insert(value); }
+    }
 }

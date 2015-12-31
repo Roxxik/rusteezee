@@ -1,4 +1,4 @@
-pub const cube_shader_vertex_src: &'static str = r#"
+pub const CUBE_VERTEX: &'static str = r#"
     #version 140
 
     in vec3 pos;
@@ -16,7 +16,7 @@ pub const cube_shader_vertex_src: &'static str = r#"
         gl_Position = perspective * view * model * vec4(pos + cube_pos, 1.0);
     }
 "#;
-pub const cube_shader_fragment_src: &'static str = r#"
+pub const CUBE_FRAGMENT: &'static str = r#"
     #version 140
 
     in vec2 v_tex_pos;
@@ -29,7 +29,7 @@ pub const cube_shader_fragment_src: &'static str = r#"
     }
 "#;
 
-pub const wire_shader_vertex_src: &'static str = r#"
+pub const WIRE_VERTEX: &'static str = r#"
     #version 140
 
     in vec3 pos;
@@ -47,7 +47,7 @@ pub const wire_shader_vertex_src: &'static str = r#"
         gl_Position = perspective * view * model * vec4(pos + cube_pos, 1.0);
     }
 "#;
-pub const wire_shader_fragment_src: &'static str = r#"
+pub const WIRE_FRAGMENT: &'static str = r#"
     #version 140
 
     in vec3 v_color;
