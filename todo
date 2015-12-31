@@ -1,0 +1,13 @@
+cube data structure
+texture for every side
+better key handling
+
+refactoring
+
+
+
+
+
+//minecraft compat
+north/south slightly lighter
+selected cube is thicker and is not opaque
