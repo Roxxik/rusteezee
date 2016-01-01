@@ -142,20 +142,13 @@ impl Renderer {
                 ).unwrap();
 
                 if self.stats {
-                    self.text.draw(&mut target, &format!(
-                        "x: {}, y: {}, z: {}, phi: {}, theta: {}",
-                        self.camera.pos.x,
-                        self.camera.pos.y,
-                        self.camera.pos.z,
-                        self.camera.phi.s,
-                        self.camera.theta.s,
-                    ), (1.0, 1.0, 0.0, 1.0));
+                    self.text.draw(&mut target, &format!("{}", self.camera), (1.0, 1.0, 0.0, 1.0));
                 }
             }
             target.finish().unwrap();
 
-            self.camera.update();
             self.handle_events();
+            self.camera.update();
         }
     }
 
@@ -191,70 +184,111 @@ impl Renderer {
         }
     }
 
+
     fn convert(ev: GlEvent) -> Option<Event> {
         use self::event::Event::*;
+        use self::HDirection::*;
+        use self::VDirection::*;
+        use glium::glutin::Event::{ KeyboardInput, Closed };
+        use glium::glutin::ElementState::Pressed;
+        use glium::glutin::VirtualKeyCode as V;
         match ev {
+            Closed => Some(Exit),
+            KeyboardInput(state, _, Some(key)) => {
+                let t = state == Pressed;
+                match (state, key) {
+                    (Pressed, V::Key1)   => Some(ToogleBlock { block: 1 }),
+                    (Pressed, V::Key2)   => Some(ToogleBlock { block: 2 }),
+                    (Pressed, V::Key3)   => Some(ToogleBlock { block: 3 }),
+                    (Pressed, V::Key4)   => Some(ToogleBlock { block: 4 }),
+                    (Pressed, V::Key5)   => Some(ToogleBlock { block: 5 }),
+                    (Pressed, V::Key6)   => Some(ToogleBlock { block: 6 }),
+                    (Pressed, V::Key7)   => Some(ToogleBlock { block: 7 }),
+                    (Pressed, V::Key8)   => Some(ToogleBlock { block: 8 }),
+                    (Pressed, V::Key9)   => Some(ToogleBlock { block: 9 }),
+                    (_      , V::W)      => Some(Move { dir: Forth, toogle: t }),
+                    (_      , V::A)      => Some(Move { dir: Left , toogle: t }),
+                    (_      , V::S)      => Some(Move { dir: Back , toogle: t }),
+                    (_      , V::D)      => Some(Move { dir: Right, toogle: t }),
+                    (_      , V::Up)     => Some(Turn { dir: Forth, toogle: t }),
+                    (_      , V::Left)   => Some(Turn { dir: Left , toogle: t }),
+                    (_      , V::Down)   => Some(Turn { dir: Back , toogle: t }),
+                    (_      , V::Right)  => Some(Turn { dir: Right, toogle: t }),
+                    (_      , V::Space)  => Some(Fly  { dir: Up   , toogle: t }),
+                    (_      , V::LShift) => Some(Fly  { dir: Down , toogle: t }),
+                    _ => None,
+                }
+
+            },
             _ => None,
         }
     }
 
     fn handle_events(&mut self) {
-        for ev in self.display.poll_events() {
-            use glium::glutin::Event::{ KeyboardInput, Closed };
-            use glium::glutin::ElementState::{ Pressed, Released };
-            use glium::glutin::VirtualKeyCode;
-            use glium::glutin::VirtualKeyCode::*;
+        for ev in self.display.poll_events().map(Renderer::convert).filter(|o| o.is_some()).map(|o| o.unwrap()) {
+            use self::event::Event::*;
             match ev {
-                Closed => return,
-                KeyboardInput(Pressed, _, Some(F3)) => {
-                    self.stats = !self.stats;
-                },
-                KeyboardInput(Pressed, _, Some(F1)) => {
-                    self.fill = !self.fill;
-                },
-                KeyboardInput(state, _, Some(key)) => {
-                    use self::camera::Direction::*;
-                    if state == Pressed {
-                        if let Some(stone) = match key {
-                            Key1 => Some(1),
-                            Key2 => Some(2),
-                            Key3 => Some(3),
-                            Key4 => Some(4),
-                            Key5 => Some(5),
-                            Key6 => Some(6),
-                            Key7 => Some(7),
-                            Key8 => Some(8),
-                            Key9 => Some(9),
-                            _ => None,
-                        } {
-                            self.game.flip_stone(stone);
-                        }
-                    }
-                    if let Some(dir) = match key {
-                        W => Some(Forward),
-                        S => Some(Backward),
-                        Space => Some(Up),
-                        LShift => Some(Down),
-                        A => Some(Left),
-                        D => Some(Right),
-                        VirtualKeyCode::Left => Some(TurnLeft),
-                        VirtualKeyCode::Right => Some(TurnRight),
-                        VirtualKeyCode::Up => Some(TurnUp),
-                        VirtualKeyCode::Down => Some(TurnDown),
-                        _ => None,
-                    } {
-                        self.camera.set_dir(
-                            match state {
-                                Pressed => true,
-                                Released => false,
-                            },
-                            dir,
-                        );
-                    }
-
-                },
-                _ => {},
+                ToogleBlock { block: n }   => self.game.flip_stone(n),
+                Move { dir: d, toogle: t } => self.camera.mov (d, t),
+                Turn { dir: d, toogle: t } => self.camera.turn(d, t),
+                Fly  { dir: d, toogle: t } => self.camera.fly (d, t),
+                _ => {}
             }
         }
     }
+            //use glium::glutin::Event::{ KeyboardInput, Closed };
+            //use glium::glutin::ElementState::{ Pressed, Released };
+            //use glium::glutin::VirtualKeyCode;
+            //use glium::glutin::VirtualKeyCode::*;
+            //match ev {
+            //    Closed => return,
+            //    KeyboardInput(Pressed, _, Some(F3)) => {
+            //        self.stats = !self.stats;
+            //    },
+            //    KeyboardInput(Pressed, _, Some(F1)) => {
+            //        self.fill = !self.fill;
+            //    },
+            //    KeyboardInput(state, _, Some(key)) => {
+            //        use self::camera::Direction::*;
+            //        if state == Pressed {
+            //            if let Some(stone) = match key {
+            //                Key1 => Some(1),
+            //                Key2 => Some(2),
+            //                Key3 => Some(3),
+            //                Key4 => Some(4),
+            //                Key5 => Some(5),
+            //                Key6 => Some(6),
+            //                Key7 => Some(7),
+            //                Key8 => Some(8),
+            //                Key9 => Some(9),
+            //                _ => None,
+            //            } {
+            //                self.game.flip_stone(stone);
+            //            }
+            //        }
+            //        if let Some(dir) = match key {
+            //            W => Some(Forward),
+            //            S => Some(Backward),
+            //            Space => Some(Up),
+            //            LShift => Some(Down),
+            //            A => Some(Left),
+            //            D => Some(Right),
+            //            VirtualKeyCode::Left => Some(TurnLeft),
+            //            VirtualKeyCode::Right => Some(TurnRight),
+            //            VirtualKeyCode::Up => Some(TurnUp),
+            //            VirtualKeyCode::Down => Some(TurnDown),
+            //            _ => None,
+            //        } {
+            //            self.camera.set_dir(
+            //                match state {
+            //                    Pressed => true,
+            //                    Released => false,
+            //                },
+            //                dir,
+            //            );
+            //        }
+
+            //    },
+            //    _ => {},
+            //}
 }

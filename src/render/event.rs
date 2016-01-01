@@ -1,9 +1,7 @@
-use glium::{ self, glutin };
-
 use super::{ HDirection, VDirection };
 
 pub enum Event {
-    CameraTurn {
+    Turn {
         dir: HDirection,
         toogle: bool,
     },

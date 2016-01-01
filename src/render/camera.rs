@@ -1,21 +1,21 @@
+use std::fmt;
+use std::ops::Neg;
+
 use cgmath;
 use cgmath::{ Vector3, Point, Point3, Angle, Deg, Vector, EuclideanVector, Matrix4 };
+use bit_set::BitSet;
 
-use std::ops::{ Neg, Index, IndexMut };
-use std::convert::From;
+use super::{ HDirection, VDirection };
 
-pub const CAM_POS_STEP: f32 = 0.1;
-pub const CAM_DIR_STEP: Deg<f32> = Deg { s: 0.5 };
+const CAM_POS_STEP: f32 = 0.1;
+const CAM_DIR_STEP: Deg<f32> = Deg { s: 0.5 };
 
-pub const UP: Vector3<f32> = Vector3{ x: 0.0, y: 1.0, z: 0.0 };
-
-//phi >= 0.0 && phi <= 360.0
-//theta > -90.0 && theta < 90.0
+const UP: Vector3<f32> = Vector3{ x: 0.0, y: 1.0, z: 0.0 };
 
 #[derive(Clone, Copy, Debug)]
-pub enum Direction {
-    Forward,
-    Backward,
+enum Direction {
+    Forth,
+    Back,
     Up,
     Down,
     Left,
@@ -30,8 +30,8 @@ impl Direction {
     pub fn moves() -> Vec<Direction> {
         use self::Direction::*;
         vec![
-            Forward,
-            Backward,
+            Forth,
+            Back,
             Up,
             Down,
             Left,
@@ -52,12 +52,12 @@ impl Direction {
     pub fn to_vec(&self, phi: Deg<f32>) -> Vector3<f32> {
         use self::Direction::*;
         Vector3::from(match *self {
-            Up       => (0.0,  1.0, 0.0),
-            Down     => (0.0, -1.0, 0.0),
-            Forward  |
-            Backward |
-            Left     |
-            Right    => {
+            Up    => (0.0,  1.0, 0.0),
+            Down  => (0.0, -1.0, 0.0),
+            Forth |
+            Back  |
+            Left  |
+            Right => {
                 if let Some(a) = self.to_angle() {
                     let a = phi + a;
                     (
@@ -76,27 +76,27 @@ impl Direction {
     fn to_angle(&self) -> Option<Deg<f32>> {
         use self::Direction::*;
         match *self {
-            Forward  => Some(0.0),
-            Backward => Some(180.0),
-            Left     => Some(270.0),
-            Right    => Some(90.0),
+            Forth => Some(0.0),
+            Back  => Some(180.0),
+            Left  => Some(270.0),
+            Right => Some(90.0),
             _ => None
         }.map(cgmath::deg)
     }
 }
 
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct Camera {
-    pub pos: Point3<f32>,
-    pub phi: Deg<f32>,
-    pub theta: Deg<f32>,
-    pub movement: [bool; 10],
+    pos: Point3<f32>,
+    phi: Deg<f32>,
+    theta: Deg<f32>,
+    state: BitSet,
 }
 
 impl Camera {
     pub fn new(pos: Point3<f32>, phi: Deg<f32>, theta: Deg<f32>) -> Camera {
-        let mut cam = Camera { pos: pos, phi: phi, theta: theta, movement: [false; 10] };
+        let mut cam = Camera { pos: pos, phi: phi, theta: theta, state: BitSet::new() };
         cam.norm_phi();
         cam.norm_theta();
         cam
@@ -113,11 +113,11 @@ impl Camera {
         Camera::new(pos, Deg::from(phi), Deg::from(theta))
     }
 
-    pub fn norm_phi(&mut self) {
+    fn norm_phi(&mut self) {
         self.phi = self.phi.normalize();
     }
 
-    pub fn norm_theta(&mut self) {
+    fn norm_theta(&mut self) {
         self.theta = cgmath::deg(self.theta.s.max(-89.999).min(89.999));
     }
 
@@ -141,13 +141,52 @@ impl Camera {
         )
     }
 
-    pub fn set_dir(&mut self, state: bool, dir: Direction) {
-        self[dir] = state;
+    pub fn mov(&mut self, dir: HDirection, toogle: bool) {
+        use super::HDirection as H;
+        use self::Direction as D;
+        let dir = match dir {
+            H::Forth => D::Forth,
+            H::Back  => D::Back,
+            H::Left  => D::Left,
+            H::Right => D::Right,
+        };
+        self.set_dir(dir, toogle);
+    }
+
+    pub fn turn(&mut self, dir: HDirection, toogle: bool) {
+        use super::HDirection as H;
+        use self::Direction as D;
+        let dir = match dir {
+            H::Forth => D::TurnUp,
+            H::Back  => D::TurnDown,
+            H::Left  => D::TurnLeft,
+            H::Right => D::TurnRight,
+        };
+        self.set_dir(dir, toogle);
+    }
+
+    pub fn fly(&mut self, dir: VDirection, toogle: bool) {
+        use super::VDirection as V;
+        use self::Direction as D;
+        let dir = match dir {
+            V::Up   => D::Up,
+            V::Down => D::Down,
+        };
+        self.set_dir(dir, toogle);
+
+    }
+
+    fn set_dir(&mut self, dir: Direction, toogle: bool) {
+        if toogle {
+            self.state.insert(dir as usize);
+        } else {
+            self.state.remove(&(dir as usize));
+        }
     }
 
     pub fn update(&mut self) {
         for turn in Direction::turns() {
-            if self[turn] {
+            if self.state.contains(&(turn as usize)) {
                 use self::Direction::*;
                 match turn {
                     TurnUp    => self.theta = self.theta + CAM_DIR_STEP,
@@ -161,47 +200,23 @@ impl Camera {
         self.norm_phi();
         self.norm_theta();
         for dir in Direction::moves() {
-            if self[dir] {
+            if self.state.contains(&(dir as usize)) {
                 self.pos = self.pos + dir.to_vec(self.phi);
             }
         }
     }
 }
 
-impl Index<Direction> for Camera {
-    type Output = bool;
-
-    fn index(&self, index: Direction) -> &Self::Output {
-        use self::Direction::*;
-        &self.movement[match index {
-            Forward => 0,
-            Backward => 1,
-            Up => 2,
-            Down => 3,
-            Left => 4,
-            Right => 5,
-            TurnUp => 6,
-            TurnDown => 7,
-            TurnLeft => 8,
-            TurnRight => 9,
-        }]
-    }
-}
-
-impl IndexMut<Direction> for Camera {
-    fn index_mut(&mut self, index: Direction) -> &mut Self::Output {
-        use self::Direction::*;
-        &mut self.movement[match index {
-            Forward => 0,
-            Backward => 1,
-            Up => 2,
-            Down => 3,
-            Left => 4,
-            Right => 5,
-            TurnUp => 6,
-            TurnDown => 7,
-            TurnLeft => 8,
-            TurnRight => 9,
-        }]
+impl fmt::Display for Camera {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(
+            fmt,
+            "x: {}, y: {}, z: {}, phi: {}, theta: {}",
+            self.pos.x,
+            self.pos.y,
+            self.pos.z,
+            self.phi.s,
+            self.theta.s,
+        )
     }
 }
