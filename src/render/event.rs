@@ -20,5 +20,4 @@ pub enum Event {
     ToogleBlock {
         block: usize,
     },
-    Exit,
 }

@@ -107,7 +107,7 @@ impl Camera {
 
         let dir_plane = Vector3::new(dir.x, 0.0, dir.z);
 
-        let phi = dir_plane.angle(Vector3::unit_z().neg()) * dir.x.signum();
+        let phi = dir_plane.angle(Vector3::unit_z().neg()) * dir_plane.x.signum();
         let theta = dir.angle(dir_plane) * dir.y.signum();
 
         Camera::new(pos, Deg::from(phi), Deg::from(theta))
@@ -139,6 +139,16 @@ impl Camera {
             s.z,              u.z,              f.z,              0.0,
             -self.pos.dot(s), -self.pos.dot(u), -self.pos.dot(f), 1.0,
         )
+    }
+
+    pub fn add_phi(&mut self, delta_phi: f32) {
+        self.phi = self.phi + cgmath::deg(delta_phi);
+        self.norm_phi();
+    }
+
+    pub fn add_theta(&mut self, delta_theta: f32) {
+        self.theta = self.theta + cgmath::deg(delta_theta);
+        self.norm_theta();
     }
 
     pub fn mov(&mut self, dir: HDirection, toogle: bool) {
@@ -173,7 +183,6 @@ impl Camera {
             V::Down => D::Down,
         };
         self.set_dir(dir, toogle);
-
     }
 
     fn set_dir(&mut self, dir: Direction, toogle: bool) {
