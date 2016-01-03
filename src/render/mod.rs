@@ -247,6 +247,8 @@ impl Renderer {
                     // screen coordinates decrease to the top, unlike theta
                     self.camera.add_theta((mid_y - mouse_y as i32) as f32 * MOUSE_SENSIVITY);
                 },
+                E::KeyboardInput(Pressed, _, Some(F1)) => self.fill = !self.fill,
+                E::KeyboardInput(Pressed, _, Some(F3)) => self.stats = ! self.stats,
                 E::KeyboardInput(Pressed, _, Some(Escape)) => return false,
                 _ => if let Some(ev) = Renderer::convert(ev) {
                     use self::event::Event::*;
