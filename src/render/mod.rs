@@ -8,6 +8,22 @@ mod text;
 mod texture;
 mod wire_cube;
 
+use std::f32::consts::PI;
+
+use image;
+use cgmath::{ Point, Point3, Matrix4 };
+use glium::{ self, glutin, DisplayBuild, Surface };
+use glium::program::Program;
+use glium::glutin::Event as GlEvent;
+use glium::backend::glutin_backend::WinRef;
+
+use self::camera::Camera;
+use self::text::Text;
+use self::error::RenderCreationError;
+use self::event::Event;
+use game::GameState;
+
+const MOUSE_SENSIVITY: f32 = 0.1;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Position {
@@ -30,24 +46,11 @@ pub enum VDirection {
     Down,
 }
 
-use image;
-use cgmath::{ Point, Point3, Matrix4 };
-use glium::{ self, glutin, DisplayBuild, Surface };
-use glium::program::Program;
-use glium::glutin::Event as GlEvent;
-
-use self::camera::Camera;
-use self::text::Text;
-use self::error::RenderCreationError;
-use self::event::Event;
-use game::GameState;
-
 pub struct Renderer {
     display: glium::Display,
     cube_program: Program,
     wire_program: Program,
     camera: Camera,
-    //TODO make fov in degree
     fov: f32, //in radians
     text: Text,
     stats: bool,
@@ -73,13 +76,17 @@ impl Renderer {
             None,
         ));
         let text = try!(Text::new(&display, "/usr/share/fonts/TTF/NotoSans-Regular.ttf", 24));
-        display.get_window().unwrap().set_cursor_state(glutin::CursorState::Grab).unwrap();
+        {
+            let window = display.get_window().unwrap();
+            window.set_cursor(glium::glutin::MouseCursor::Crosshair);
+            Renderer::fix_mouse(window);
+        }
         Ok(Renderer {
             display: display,
             cube_program: cube_prog,
             wire_program: wire_prog,
             camera: Camera::at(Point3::new(5.0, 5.0, 5.0), Point::origin()),
-            fov: ::std::f32::consts::PI / 3.0,
+            fov: PI / 3.0,
             text: text,
             stats: false,
             fill: true,
@@ -98,6 +105,7 @@ impl Renderer {
         let texture_sampler = glium::uniforms::Sampler::new(&texture)
             .magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest)
             .minify_filter(glium::uniforms::MinifySamplerFilter::Nearest);
+
 
         let vb_cube = glium::VertexBuffer::new(&self.display, &cube::VERTICES).unwrap();
         let ib_cube = glium::IndexBuffer::new(&self.display, glium::index::PrimitiveType::TrianglesList, &cube::INDICES).unwrap();
@@ -148,7 +156,14 @@ impl Renderer {
             }
             target.finish().unwrap();
 
-            self.handle_events();
+            {
+                let window = self.display.get_window().unwrap();
+                window.set_cursor(glium::glutin::MouseCursor::Crosshair);
+            }
+
+            if !self.handle_events() {
+                return;
+            }
             self.camera.update();
         }
     }
@@ -224,24 +239,22 @@ impl Renderer {
         }
     }
 
-    fn handle_events(&mut self) {
+    fn handle_events(&mut self) -> bool {
         for ev in self.display.poll_events() {
             use glium::glutin::Event as E;
             use glium::glutin::ElementState::Pressed;
             use glium::glutin::VirtualKeyCode::*;
             match ev {
-                E::Focused(false) => {
-                    self.display.get_window().unwrap().set_cursor_state(glutin::CursorState::Normal).unwrap();
+                E::Closed => return false,
+                E::MouseMoved((mouse_x, mouse_y)) => {
+                    let window = self.display.get_window().unwrap();
+                    let (mid_x, mid_y) = Renderer::fix_mouse(window);
+                    // screen coordinates increase to the right, just like phi
+                    self.camera.add_phi((mouse_x - mid_x as i32) as f32 * MOUSE_SENSIVITY);
+                    // screen coordinates decrease to the top, unlike theta
+                    self.camera.add_theta((mid_y - mouse_y as i32) as f32 * MOUSE_SENSIVITY);
                 },
-                E::MouseInput(_, _) => {
-                    self.display.get_window().unwrap().set_cursor_state(glutin::CursorState::Grab).unwrap();
-                },
-                E::KeyboardInput(Pressed, _, Some(X)) => {
-                    self.display.get_window().unwrap().set_cursor_state(glutin::CursorState::Normal).unwrap();
-                },
-                E::KeyboardInput(Pressed, _, Some(Y)) => {
-                    self.display.get_window().unwrap().set_cursor_state(glutin::CursorState::Grab).unwrap();
-                },
+                E::KeyboardInput(Pressed, _, Some(Escape)) => return false,
                 _ => if let Some(ev) = Renderer::convert(ev) {
                     use self::event::Event::*;
                     match ev {
@@ -254,5 +267,14 @@ impl Renderer {
                 },
             }
         }
+        return true;
+    }
+
+    //returns mouse delta
+    fn fix_mouse(window: WinRef) -> (i32, i32) {
+        let (x, y) = window.get_inner_size_points().unwrap();
+        let (mid_x, mid_y) = (x as i32 / 2, y as i32 / 2);
+        window.set_cursor_position(mid_x, mid_y).unwrap();
+        (mid_x, mid_y)
     }
 }
