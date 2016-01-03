@@ -1,4 +1,4 @@
-# rusteezee
+# [WIP]rusteezee (working title)
 
 A minimal Minecraft clone.
 
