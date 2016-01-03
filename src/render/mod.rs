@@ -115,7 +115,6 @@ impl Renderer {
         loop {
             let mut target = self.display.draw();
             target.clear_color_and_depth((0.0, 0.0, 1.0, 1.0), 1.0);
-            //target.clear_depth(1.0);
 
             let perspective: [[f32; 4]; 4] = self.get_perspective(&target).into();
             let view: [[f32; 4]; 4] = self.camera.view_matrix().into();

@@ -30,6 +30,7 @@ impl Text {
         })
     }
 
+    // Surface MUST belong to display of constructor
     pub fn draw<S: Surface>(&self, surface: &mut S, text: &str, color: (f32, f32, f32, f32)) {
         let text = TextDisplay::new(&self.system, &self.font, text);
         glium_text::draw(&text, &self.system, surface, MATRIX, color);
