@@ -156,11 +156,6 @@ impl Renderer {
             }
             target.finish().unwrap();
 
-            {
-                let window = self.display.get_window().unwrap();
-                window.set_cursor(glium::glutin::MouseCursor::Crosshair);
-            }
-
             if !self.handle_events() {
                 return;
             }
