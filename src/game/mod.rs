@@ -1,17 +1,23 @@
-use bit_set::BitSet;
+use std::collections::HashSet;
+
 
 pub struct GameState {
-    pub stones: BitSet,
+    pub stones: HashSet<(i32, i32, i32)>,
 }
 
 impl GameState {
     pub fn new() -> GameState {
         GameState {
-            stones: BitSet::new(),
+            stones: HashSet::new(),
         }
     }
 
-    pub fn flip_stone(&mut self, value: usize) {
-        if self.stones.contains(&value) { self.stones.remove(&value); } else { self.stones.insert(value); }
+    pub fn flip_stone(&mut self, block: (i32, i32, i32)) {
+        if self.stones.contains(&block) {
+            self.stones.remove(&block);
+        } else {
+            self.stones.insert(block);
+        }
+
     }
 }
