@@ -121,10 +121,10 @@ impl Renderer {
             {
                 let params = self.get_params();
 
-                let cubes: Vec<_> = self.game.stones.into_iter().map(|x| Position { cube_pos: (0, 0, x as i32) }).collect();
+                let cubes: Vec<_> = self.game.stones.iter().map(|&(x, y, z)| Position { cube_pos: (x, y, z) }).collect();
                 let cubes_buffer = glium::vertex::VertexBuffer::new(&self.display, &cubes).unwrap();
 
-                let wires: Vec<Position> = self.game.stones.into_iter().min().map(|x| Position { cube_pos: (0, 0, x as i32) }).into_iter().collect();
+                let wires: Vec<Position> = self.game.stones.iter().min().map(|&(x, y, z)| Position { cube_pos: (x, y, z) }).into_iter().collect();
                 let wires_buffer = glium::vertex::VertexBuffer::new(&self.display, &wires).unwrap();
 
 
@@ -205,15 +205,15 @@ impl Renderer {
             E::KeyboardInput(state, _, Some(key)) => {
                 let t = state == Pressed;
                 match (state, key) {
-                    (Pressed, V::Key1)   => Some(ToogleBlock { block: 1 }),
-                    (Pressed, V::Key2)   => Some(ToogleBlock { block: 2 }),
-                    (Pressed, V::Key3)   => Some(ToogleBlock { block: 3 }),
-                    (Pressed, V::Key4)   => Some(ToogleBlock { block: 4 }),
-                    (Pressed, V::Key5)   => Some(ToogleBlock { block: 5 }),
-                    (Pressed, V::Key6)   => Some(ToogleBlock { block: 6 }),
-                    (Pressed, V::Key7)   => Some(ToogleBlock { block: 7 }),
-                    (Pressed, V::Key8)   => Some(ToogleBlock { block: 8 }),
-                    (Pressed, V::Key9)   => Some(ToogleBlock { block: 9 }),
+                    (Pressed, V::Numpad1)   => Some(ToogleBlock { block: (-1, 0,  1) }),
+                    (Pressed, V::Numpad2)   => Some(ToogleBlock { block: ( 0, 0,  1) }),
+                    (Pressed, V::Numpad3)   => Some(ToogleBlock { block: ( 1, 0,  1) }),
+                    (Pressed, V::Numpad4)   => Some(ToogleBlock { block: (-1, 0,  0) }),
+                    (Pressed, V::Numpad5)   => Some(ToogleBlock { block: ( 0, 0,  0) }),
+                    (Pressed, V::Numpad6)   => Some(ToogleBlock { block: ( 1, 0,  0) }),
+                    (Pressed, V::Numpad7)   => Some(ToogleBlock { block: (-1, 0, -1) }),
+                    (Pressed, V::Numpad8)   => Some(ToogleBlock { block: ( 0, 0, -1) }),
+                    (Pressed, V::Numpad9)   => Some(ToogleBlock { block: ( 1, 0, -1) }),
                     (_      , V::W)      => Some(Move { dir: Forth, toogle: t }),
                     (_      , V::A)      => Some(Move { dir: Left , toogle: t }),
                     (_      , V::S)      => Some(Move { dir: Back , toogle: t }),
