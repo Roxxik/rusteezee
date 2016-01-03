@@ -79,7 +79,6 @@ impl Renderer {
         {
             let window = display.get_window().unwrap();
             window.set_cursor(glium::glutin::MouseCursor::Crosshair);
-            Renderer::fix_mouse(window);
         }
         Ok(Renderer {
             display: display,
