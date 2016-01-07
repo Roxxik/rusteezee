@@ -18,6 +18,6 @@ pub enum Event {
         toogle: bool,
     },
     ToogleBlock {
-        block: (i32, i32, i32),
+        block: [i32; 3],
     },
 }

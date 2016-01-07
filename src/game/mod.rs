@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 
 pub struct GameState {
-    pub stones: HashSet<(i32, i32, i32)>,
+    pub stones: HashSet<[i32; 3]>,
 }
 
 impl GameState {
@@ -12,7 +12,7 @@ impl GameState {
         }
     }
 
-    pub fn flip_stone(&mut self, block: (i32, i32, i32)) {
+    pub fn flip_stone(&mut self, block: [i32; 3]) {
         if self.stones.contains(&block) {
             self.stones.remove(&block);
         } else {

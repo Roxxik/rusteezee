@@ -5,6 +5,10 @@ pub struct CubeVertex {
 }
 implement_vertex!(CubeVertex, pos, tex_pos);
 
+use glium::index::PrimitiveType;
+
+pub const PRIMITIVE_TYPE:  PrimitiveType = PrimitiveType::TrianglesList;
+
 pub const VERTICES: [CubeVertex; 24] = [
     //North
     CubeVertex { pos: ( 0.5,  0.5, -0.5), tex_pos: (1.0, 1.0) },
