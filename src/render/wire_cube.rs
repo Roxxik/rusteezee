@@ -9,6 +9,10 @@ const SCALE: f32 = 1.01;
 
 const COLOR: (f32, f32, f32) = (0.0, 0.0, 0.0);
 
+use glium::index::PrimitiveType;
+
+pub const PRIMITIVE_TYPE:  PrimitiveType = PrimitiveType::LinesList;
+
 pub const VERTICES: [WireVertex; 8] = [
     WireVertex { pos: ( 0.5 * SCALE,  0.5 * SCALE,  0.5 * SCALE), color: COLOR },
     WireVertex { pos: ( 0.5 * SCALE,  0.5 * SCALE, -0.5 * SCALE), color: COLOR },

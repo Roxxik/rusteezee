@@ -4,7 +4,6 @@ version = "0.1.0"
 authors = ["Stefan Nitz <nitz.stefan@googlemail.com>"]
 
 [dependencies]
-glium = "0.13.2"
 cgmath = "0.7.0"
 image = "*"
 bit-set = "0.2.0"
@@ -12,3 +11,7 @@ bit-vec = "0.4.2"
 
 [dependencies.glium_text]
 path = "../glium_text"
+
+
+[dependencies.glium]
+path = "../glium"

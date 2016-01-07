@@ -4,6 +4,7 @@ mod cube;
 mod error;
 mod event;
 mod shader;
+mod picking;
 mod text;
 mod texture;
 mod wire_cube;
@@ -16,18 +17,20 @@ use glium::{ self, glutin, DisplayBuild, Surface };
 use glium::program::Program;
 use glium::glutin::Event as GlEvent;
 use glium::backend::glutin_backend::WinRef;
+use glium::draw_parameters::DrawParameters;
 
 use self::camera::Camera;
 use self::text::Text;
-use self::error::RenderCreationError;
+use self::error::RendererCreationError;
 use self::event::Event;
+use self::picking::Picker;
 use game::GameState;
 
 const MOUSE_SENSIVITY: f32 = 0.1;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Position {
-    pub cube_pos: (i32, i32, i32),
+    pub cube_pos: [i32; 3],
 }
 implement_vertex!(Position, cube_pos);
 
@@ -48,6 +51,7 @@ pub enum VDirection {
 
 pub struct Renderer {
     display: glium::Display,
+    picker: Picker,
     cube_program: Program,
     wire_program: Program,
     camera: Camera,
@@ -55,45 +59,47 @@ pub struct Renderer {
     text: Text,
     stats: bool,
     fill: bool,
+    picked_block: Option<[i32; 3]>,
     game: GameState,
 }
 
 impl Renderer {
-    pub fn new() -> Result<Renderer, RenderCreationError<glutin::CreationError>> {
+    pub fn new() -> Result<Renderer, RendererCreationError<glutin::CreationError>> {
         let display = try!(glutin::WindowBuilder::new()
             .with_depth_buffer(24)
             .build_glium());
-        let cube_prog = try!(Program::from_source(
-            &display,
-            shader::CUBE_VERTEX,
-            shader::CUBE_FRAGMENT,
-            None,
-        ));
-        let wire_prog = try!(Program::from_source(
-            &display,
-            shader::WIRE_VERTEX,
-            shader::WIRE_FRAGMENT,
-            None,
-        ));
-        let text = try!(Text::new(&display, "/usr/share/fonts/TTF/NotoSans-Regular.ttf", 24));
         {
             let window = display.get_window().unwrap();
             window.set_cursor(glium::glutin::MouseCursor::Crosshair);
         }
+
         Ok(Renderer {
-            display: display,
-            cube_program: cube_prog,
-            wire_program: wire_prog,
+            picker: try!(Picker::new(&display)),
+            text: try!(Text::new(&display, "/usr/share/fonts/TTF/NotoSans-Regular.ttf", 24)),
+            cube_program: try!(Program::from_source(
+                &display,
+                shader::CUBE_VERTEX,
+                shader::CUBE_FRAGMENT,
+                None,
+            )),
+            wire_program: try!(Program::from_source(
+                &display,
+                shader::WIRE_VERTEX,
+                shader::WIRE_FRAGMENT,
+                None,
+            )),
             camera: Camera::at(Point3::new(5.0, 5.0, 5.0), Point::origin()),
             fov: PI / 3.0,
-            text: text,
             stats: false,
             fill: true,
+            picked_block: None,
             game: GameState::new(),
+            display: display,
         })
     }
 
     pub fn game_loop(mut self) {
+        use glium::{ VertexBuffer, IndexBuffer };
 
         let image = image::load(::std::io::Cursor::new(&include_bytes!(
             "../../assets/textures/dirt.png"
@@ -106,53 +112,82 @@ impl Renderer {
             .minify_filter(glium::uniforms::MinifySamplerFilter::Nearest);
 
 
-        let vb_cube = glium::VertexBuffer::new(&self.display, &cube::VERTICES).unwrap();
-        let ib_cube = glium::IndexBuffer::new(&self.display, glium::index::PrimitiveType::TrianglesList, &cube::INDICES).unwrap();
+        let vb_cube = VertexBuffer::immutable(&self.display, &cube::VERTICES).unwrap();
+        let ib_cube = IndexBuffer::immutable(&self.display, cube::PRIMITIVE_TYPE, &cube::INDICES).unwrap();
 
-        let vb_wire = glium::VertexBuffer::new(&self.display, &wire_cube::VERTICES).unwrap();
-        let ib_wire = glium::IndexBuffer::new(&self.display, glium::index::PrimitiveType::LinesList, &wire_cube::INDICES).unwrap();
+        let vb_wire = VertexBuffer::immutable(&self.display, &wire_cube::VERTICES).unwrap();
+        let ib_wire = IndexBuffer::immutable(&self.display, wire_cube::PRIMITIVE_TYPE, &wire_cube::INDICES).unwrap();
+
+        //let wires: Vec<Position> = self.game.stones.iter().min().map(|&s| Position { cube_pos: s }).into_iter().collect();
+        //let wires_buffer = VertexBuffer::new(&self.display, &wires).unwrap();
+        //let wires: Vec<Position> = self.picker.pick(&self.display).iter().map(|w| Position { cube_pos: (w[0], w[1], w[2]) }).collect();
+        let mut wires_buffer: VertexBuffer<Position> = VertexBuffer::empty_dynamic(&self.display, 1).unwrap();
 
         loop {
             let mut target = self.display.draw();
             target.clear_color_and_depth((0.0, 0.0, 1.0, 1.0), 1.0);
 
-            let perspective: [[f32; 4]; 4] = self.get_perspective(&target).into();
-            let view: [[f32; 4]; 4] = self.camera.view_matrix().into();
-            {
-                let params = self.get_params();
+            let perspective = self.get_perspective(target.get_dimensions());
+            let view = self.camera.view_matrix();
 
-                let cubes: Vec<_> = self.game.stones.iter().map(|&(x, y, z)| Position { cube_pos: (x, y, z) }).collect();
-                let cubes_buffer = glium::vertex::VertexBuffer::new(&self.display, &cubes).unwrap();
+            let vp: [[f32; 4]; 4]  = (perspective * view).into();
 
-                let wires: Vec<Position> = self.game.stones.iter().min().map(|&(x, y, z)| Position { cube_pos: (x, y, z) }).into_iter().collect();
-                let wires_buffer = glium::vertex::VertexBuffer::new(&self.display, &wires).unwrap();
+            {//pick from previous frame
+                use self::picking::PickingResult::*;
 
-
-                target.draw(
-                    (&vb_cube, cubes_buffer.per_instance().unwrap()),
-                    &ib_cube,
-                    &self.cube_program,
-                    &uniform! {
-                        model: block::MODEL,
-                        view: view,
-                        perspective: perspective,
-                        tex: texture_sampler,
+                self.picked_block = None;
+                match self.picker.pick() {
+                    Some(Block(pos)) => {
+                        self.picked_block = Some(pos);
+                        //TODO calculate distance
                     },
-                    &params
-                ).unwrap();
-                target.draw(
-                    (&vb_wire, wires_buffer.per_instance().unwrap()),
-                    &ib_wire,
-                    &self.wire_program,
-                    &uniform! { model: block::MODEL, view: view, perspective: perspective },
-                    &params
-                ).unwrap();
-
-                if self.stats {
-                    self.text.draw(&mut target, &format!("{}", self.camera), (1.0, 1.0, 0.0, 1.0));
+                    _ => (),
                 }
             }
+
+            if let Some(pos) = self.picked_block {
+                wires_buffer.map_write().set(0, Position { cube_pos: pos });
+            }
+
+            let params = self.get_params();
+
+            let cubes: Vec<_> = self.game.stones.iter().map(|&s| Position { cube_pos: s }).collect();
+            let cubes_buffer = VertexBuffer::new(&self.display, &cubes).unwrap();
+
+
+            self.picker.draw(
+                &self.display,
+                (&vb_cube, cubes_buffer.per_instance().unwrap()),
+                &ib_cube,
+                &uniform! { vp: vp },
+                &params,
+                target.get_dimensions(),
+            );
+
+            target.draw(
+                (&vb_cube, cubes_buffer.per_instance().unwrap()),
+                &ib_cube,
+                &self.cube_program,
+                &uniform! {
+                    vp : vp,
+                    tex: texture_sampler,
+                },
+                &params
+            ).unwrap();
+            target.draw(
+                (&vb_wire, wires_buffer.per_instance().unwrap()),
+                &ib_wire,
+                &self.wire_program,
+                &uniform! { vp: vp },
+                &params
+            ).unwrap();
+
+            if self.stats {
+                self.text.draw(&mut target, &format!("{}", self.camera), (1.0, 1.0, 0.0, 1.0));
+            }
+
             target.finish().unwrap();
+
 
             if !self.handle_events() {
                 return;
@@ -161,8 +196,8 @@ impl Renderer {
         }
     }
 
-    fn get_perspective<T: Surface>(&self, surface: &T) -> Matrix4<f32> {
-        let (width, height) = surface.get_dimensions();
+    fn get_perspective(&self, dimensions: (u32, u32)) -> Matrix4<f32> {
+        let (width, height) = dimensions;
         let aspect_ratio = height as f32 / width as f32;
 
         let zfar = 1024.0;
@@ -178,10 +213,11 @@ impl Renderer {
         )
     }
 
-    fn get_params(&self) -> glium::DrawParameters {
+    fn get_params<'b, 'c>(&'b self) -> DrawParameters<'c> {
         use glium::draw_parameters::PolygonMode::{ Fill, Line };
         use glium::draw_parameters::DepthTest;
-        glium::DrawParameters {
+
+        DrawParameters {
             depth: glium::Depth {
                 test: DepthTest::IfLess,
                 write: true,
@@ -205,15 +241,15 @@ impl Renderer {
             E::KeyboardInput(state, _, Some(key)) => {
                 let t = state == Pressed;
                 match (state, key) {
-                    (Pressed, V::Numpad1)   => Some(ToogleBlock { block: (-1, 0,  1) }),
-                    (Pressed, V::Numpad2)   => Some(ToogleBlock { block: ( 0, 0,  1) }),
-                    (Pressed, V::Numpad3)   => Some(ToogleBlock { block: ( 1, 0,  1) }),
-                    (Pressed, V::Numpad4)   => Some(ToogleBlock { block: (-1, 0,  0) }),
-                    (Pressed, V::Numpad5)   => Some(ToogleBlock { block: ( 0, 0,  0) }),
-                    (Pressed, V::Numpad6)   => Some(ToogleBlock { block: ( 1, 0,  0) }),
-                    (Pressed, V::Numpad7)   => Some(ToogleBlock { block: (-1, 0, -1) }),
-                    (Pressed, V::Numpad8)   => Some(ToogleBlock { block: ( 0, 0, -1) }),
-                    (Pressed, V::Numpad9)   => Some(ToogleBlock { block: ( 1, 0, -1) }),
+                    (Pressed, V::Numpad1)   => Some(ToogleBlock { block: [-1, 0,  1] }),
+                    (Pressed, V::Numpad2)   => Some(ToogleBlock { block: [ 0, 0,  1] }),
+                    (Pressed, V::Numpad3)   => Some(ToogleBlock { block: [ 1, 0,  1] }),
+                    (Pressed, V::Numpad4)   => Some(ToogleBlock { block: [-1, 0,  0] }),
+                    (Pressed, V::Numpad5)   => Some(ToogleBlock { block: [ 0, 0,  0] }),
+                    (Pressed, V::Numpad6)   => Some(ToogleBlock { block: [ 1, 0,  0] }),
+                    (Pressed, V::Numpad7)   => Some(ToogleBlock { block: [-1, 0, -1] }),
+                    (Pressed, V::Numpad8)   => Some(ToogleBlock { block: [ 0, 0, -1] }),
+                    (Pressed, V::Numpad9)   => Some(ToogleBlock { block: [ 1, 0, -1] }),
                     (_      , V::W)      => Some(Move { dir: Forth, toogle: t }),
                     (_      , V::A)      => Some(Move { dir: Left , toogle: t }),
                     (_      , V::S)      => Some(Move { dir: Back , toogle: t }),
