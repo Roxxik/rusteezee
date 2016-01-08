@@ -49,7 +49,7 @@ impl Picker {
         })
     }
 
-    pub fn pick(&self) -> Option<PickingResult> {
+    pub fn pick(&self) -> Option<[i32; 3]> {
         let (width, height) = self.get_dimensions();
         let read_target = glium::Rect {
             left: std::cmp::max(width/2, 1) - 1,
@@ -66,7 +66,7 @@ impl Picker {
                 .first_layer()
                 .into_image(None).unwrap()
                 .raw_read_to_pixel_buffer(&read_target, &self.pbo);
-            return self.pbo.read().map(|x| PickingResult::Block([x[0].0, x[0].1, x[0].2])).ok();
+            return self.pbo.read().map(|x| [x[0].0, x[0].1, x[0].2]).ok();
         } else {
             return None;
         }
@@ -100,6 +100,7 @@ impl Picker {
                 width, height,
             ).unwrap();
         }
+        let mut target = SimpleFrameBuffer::with_depth_buffer(display, &self.tex, &self.depth).unwrap();
 
         //clearing the attachments
         self.tex
@@ -107,7 +108,6 @@ impl Picker {
             .first_layer()
             .into_image(None).unwrap()
             .raw_clear_buffer([20, 20, 20, 20i32]);
-        let mut target = SimpleFrameBuffer::with_depth_buffer(display, &self.tex, &self.depth).unwrap();
         target.clear_depth(1.0);
 
         //drawing
