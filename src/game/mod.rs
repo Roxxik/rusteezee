@@ -1,36 +1,46 @@
-use std::collections::HashSet;
+pub mod chunk;
+pub mod chunks;
+pub mod block;
 
+use self::chunks::{ Chunks, ChunkPos };
+use self::chunk::{ Chunk, BlockPos };
+use self::block::Block;
 
 pub struct GameState {
-    pub stones: HashSet<[i32; 3]>,
-    selected_block: Option<[i32; 3]>,
+    chunks: Chunks,
+    selected_block: Option<(ChunkPos, BlockPos)>,
 }
 
 impl GameState {
     pub fn new() -> GameState {
-        let mut stones = HashSet::new();
-        stones.insert([ 0,  0,  0]);
-        stones.insert([ 1,  0,  0]);
-        stones.insert([ 0,  1,  0]);
-        stones.insert([ 0,  0,  1]);
-        stones.insert([-1,  0,  0]);
-        stones.insert([ 0,  0, -1]);
-
-        GameState {
-            stones: stones,
+        let mut game = GameState {
+            chunks: Chunks::new(),
             selected_block: None,
+        };
+        for x in 0..40 {
+            let (cx, bx) = (x / 16, x % 16);
+            game.place_block(([cx,0,0], [bx as u8,0,0]));
         }
+        game
     }
 
-    pub fn set_selected_block(&mut self, block: Option<[i32; 3]>) {
+    pub fn set_selected_block(&mut self, block: Option<(ChunkPos, BlockPos)>) {
         self.selected_block = block;
     }
 
-    pub fn get_selected_block(&self) -> Option<[i32; 3]> {
+    pub fn get_selected_block(&self) -> Option<(ChunkPos, BlockPos)> {
         self.selected_block
     }
 
     pub fn attack(&mut self) {
-        self.selected_block.map(|b| self.stones.remove(&b));
+        self.selected_block.map(|(c, b)| self.chunks[c][b] = Block::Air);
+    }
+
+    pub fn place_block(&mut self, pos: (ChunkPos, BlockPos)) {
+        self.chunks[pos.0][pos.1] = Block::Dirt;
+    }
+
+    pub fn chunk(&self, pos: ChunkPos) -> Chunk {
+        self.chunks[pos]
     }
 }

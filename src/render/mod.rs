@@ -1,4 +1,3 @@
-mod block;
 mod camera;
 mod cube;
 mod error;
@@ -10,10 +9,11 @@ mod texture;
 mod wire_cube;
 
 use std::f32::consts::PI;
+use std::collections::HashMap;
 
 use image;
 use cgmath::{ Point, Point3, Matrix4 };
-use glium::{ self, glutin, DisplayBuild, Surface };
+use glium::{ self, glutin, DisplayBuild, Surface, Display, VertexBuffer, IndexBuffer };
 use glium::program::Program;
 use glium::glutin::Event as GlEvent;
 use glium::backend::glutin_backend::WinRef;
@@ -25,12 +25,15 @@ use self::error::RendererCreationError;
 use self::event::Event;
 use self::picking::Picker;
 use game::GameState;
+use game::chunks::ChunkPos;
+use game::chunk::Chunk;
+use game::block::Block;
 
 const MOUSE_SENSIVITY: f32 = 0.1;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Position {
-    pub cube_pos: [i32; 3],
+    pub cube_pos: [u8; 3],
 }
 implement_vertex!(Position, cube_pos);
 
@@ -50,7 +53,7 @@ pub enum VDirection {
 }
 
 pub struct Renderer {
-    display: glium::Display,
+    display: Display,
     picker: Picker,
     cube_program: Program,
     wire_program: Program,
@@ -96,8 +99,44 @@ impl Renderer {
         })
     }
 
+    fn around(dist: u8, center: ChunkPos) -> Vec<(ChunkPos, ChunkPos)> {
+        let mut res = Vec::new();
+        let dist = dist as i32;
+        for x in -dist + 1..dist {
+            for y in -dist + 1..dist {
+                for z in -dist + 1..dist {
+                    let rel = [x, y, z];
+                    res.push((
+                        [
+                            center[0] + rel[0],
+                            center[1] + rel[1],
+                            center[2] + rel[2],
+                        ],
+                        rel,
+                    ));
+                }
+            }
+        }
+        res
+    }
+
+    fn from_chunk(display: &Display, chunk: Chunk) -> VertexBuffer<Position> {
+        let mut blocks = Vec::new();
+        for x in 0..16 {
+            for y in 0..16 {
+                for z in 0..16 {
+                    let pos = [x, y, z];
+                    if chunk[pos] != Block::Air {
+                        blocks.push(pos);
+                    }
+                }
+            }
+        }
+        let blocks: Vec<_> = blocks.iter().map(|&pos| Position { cube_pos: pos }).collect();
+        VertexBuffer::new(display, &blocks).unwrap()
+    }
+
     pub fn game_loop(mut self) {
-        use glium::{ VertexBuffer, IndexBuffer };
 
         let image = image::load(::std::io::Cursor::new(&include_bytes!(
             "../../assets/textures/dirt.png"
@@ -117,7 +156,27 @@ impl Renderer {
         let ib_wire = IndexBuffer::immutable(&self.display, wire_cube::PRIMITIVE_TYPE, &wire_cube::INDICES).unwrap();
 
         let mut wires_buffer: VertexBuffer<Position> = VertexBuffer::empty_dynamic(&self.display, 1).unwrap();
+
+        let mut chunks: HashMap<ChunkPos, VertexBuffer<Position>> = HashMap::new();
+        let view_dist = 2;
         loop {
+            //create chunk buffers
+            chunks.clear();//TODO this needs some optimization
+            let center = self.camera.get_chunk_pos();
+            let surroundings = Renderer::around(view_dist, center);
+            for (pos, rel) in surroundings {
+                chunks.insert(rel, Renderer::from_chunk(&self.display, self.game.chunk(pos)));
+            }
+
+            //{//pick from previous frame
+            //    self.game.set_selected_block(self.picker.pick());
+            //}
+
+            //if let Some(pos) = self.game.get_selected_block() {
+            //    wires_buffer.map_write().set(0, Position { cube_pos: pos });
+            //}
+
+            // draw
             let mut target = self.display.draw();
             target.clear_color_and_depth((0.0, 0.0, 1.0, 1.0), 1.0);
 
@@ -126,39 +185,31 @@ impl Renderer {
 
             let vp: [[f32; 4]; 4]  = (perspective * view).into();
 
-            {//pick from previous frame
-                self.game.set_selected_block(self.picker.pick());
-            }
-
-            if let Some(pos) = self.game.get_selected_block() {
-                wires_buffer.map_write().set(0, Position { cube_pos: pos });
-            }
-
             let params = self.get_params();
 
-            let cubes: Vec<_> = self.game.stones.iter().map(|&s| Position { cube_pos: s }).collect();
-            let cubes_buffer = VertexBuffer::new(&self.display, &cubes).unwrap();
+            for (pos, vb) in chunks.iter() {
+                let pos = (pos[0], pos[1], pos[2]);
+                //self.picker.draw(
+                //    &self.display,
+                //    (&vb_cube, vb.per_instance().unwrap()),
+                //    &ib_cube,
+                //    &uniform! { vp: vp, chunk: pos },
+                //    &params,
+                //    target.get_dimensions(),
+                //);
 
-
-            self.picker.draw(
-                &self.display,
-                (&vb_cube, cubes_buffer.per_instance().unwrap()),
-                &ib_cube,
-                &uniform! { vp: vp },
-                &params,
-                target.get_dimensions(),
-            );
-
-            target.draw(
-                (&vb_cube, cubes_buffer.per_instance().unwrap()),
-                &ib_cube,
-                &self.cube_program,
-                &uniform! {
-                    vp : vp,
-                    tex: texture_sampler,
-                },
-                &params
-            ).unwrap();
+                target.draw(
+                    (&vb_cube, vb.per_instance().unwrap()),
+                    &ib_cube,
+                    &self.cube_program,
+                    &uniform! {
+                        vp : vp,
+                        chunk: pos,
+                        tex: texture_sampler,
+                    },
+                    &params
+                ).unwrap();
+            }
             target.draw(
                 (&vb_wire, wires_buffer.per_instance().unwrap()),
                 &ib_wire,

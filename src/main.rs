@@ -1,11 +1,11 @@
+#![allow(dead_code)]
+
 #[macro_use]
 extern crate glium;
 extern crate glium_text;
 extern crate cgmath;
 extern crate image;
 extern crate bit_set;
-
-use std::error::Error;
 
 mod render;
 mod game;
@@ -34,7 +34,7 @@ use render::Renderer;
 fn main() {
     match Renderer::new() {
         Ok(r)  => { r.game_loop(); },
-        Err(r) => { println!("{}", r.description()); },
+        Err(r) => { println!("{}", r); },
     }
 
 
