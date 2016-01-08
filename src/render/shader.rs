@@ -7,11 +7,12 @@ pub const CUBE_VERTEX: &'static str = r#"
 
     out vec2 v_tex_pos;
 
+    uniform ivec3 chunk;
     uniform mat4 vp;
 
     void main() {
         v_tex_pos = tex_pos;
-        gl_Position = vp * vec4(pos + cube_pos, 1.0);
+        gl_Position = vp * vec4(pos + cube_pos + (chunk * 16), 1.0);
     }
 "#;
 pub const CUBE_FRAGMENT: &'static str = r#"
@@ -63,11 +64,12 @@ pub const PICK_VERTEX: &'static str = r#"
 
     flat out ivec3 v_id;
 
+    uniform ivec3 chunk;
     uniform mat4 vp;
 
     void main() {
         v_id = cube_pos;
-        gl_Position = vp * vec4(pos + cube_pos, 1.0);
+        gl_Position = vp * vec4(pos + cube_pos + (chunk * 16), 1.0);
     }
 "#;
 pub const PICK_FRAGMENT: &'static str = r#"

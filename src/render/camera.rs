@@ -6,6 +6,7 @@ use cgmath::{ Vector3, Point, Point3, Angle, Deg, Vector, EuclideanVector, Matri
 use bit_set::BitSet;
 
 use super::{ HDirection, VDirection };
+use ::game::chunks::ChunkPos;
 
 const CAM_POS_STEP: f32 = 0.1;
 const CAM_DIR_STEP: Deg<f32> = Deg { s: 0.5 };
@@ -89,6 +90,7 @@ impl Direction {
 #[derive(Clone, Debug)]
 pub struct Camera {
     pos: Point3<f32>,
+    chunk: ChunkPos,
     phi: Deg<f32>,
     theta: Deg<f32>,
     state: BitSet,
@@ -96,7 +98,7 @@ pub struct Camera {
 
 impl Camera {
     pub fn new(pos: Point3<f32>, phi: Deg<f32>, theta: Deg<f32>) -> Camera {
-        let mut cam = Camera { pos: pos, phi: phi, theta: theta, state: BitSet::new() };
+        let mut cam = Camera { pos: pos, chunk: [0,0,0], phi: phi, theta: theta, state: BitSet::new() };
         cam.norm_phi();
         cam.norm_theta();
         cam
@@ -193,6 +195,10 @@ impl Camera {
         }
     }
 
+    pub fn get_chunk_pos(&self) -> ChunkPos {
+        self.chunk
+    }
+
     pub fn update(&mut self) {
         for turn in Direction::turns() {
             if self.state.contains(&(turn as usize)) {
@@ -213,6 +219,30 @@ impl Camera {
                 self.pos = self.pos + dir.to_vec(self.phi);
             }
         }
+        while self.pos.x > 16.0 {
+            self.chunk[0] += 1;
+            self.pos.x -= 16.0;
+        }
+        while self.pos.x < 0.0 {
+            self.chunk[0] -= 1;
+            self.pos.x += 16.0;
+        }
+        while self.pos.y > 16.0 {
+            self.chunk[1] += 1;
+            self.pos.y -= 16.0;
+        }
+        while self.pos.y < 0.0 {
+            self.chunk[1] -= 1;
+            self.pos.y += 16.0;
+        }
+        while self.pos.z > 16.0 {
+            self.chunk[2] += 1;
+            self.pos.z -= 16.0;
+        }
+        while self.pos.z < 0.0 {
+            self.chunk[2] -= 1;
+            self.pos.z += 16.0;
+        }
     }
 }
 
@@ -221,9 +251,9 @@ impl fmt::Display for Camera {
         write!(
             fmt,
             "x: {}, y: {}, z: {}, phi: {}, theta: {}",
-            self.pos.x,
-            self.pos.y,
-            self.pos.z,
+            self.pos.x + (self.chunk[0] * 16) as f32,
+            self.pos.y + (self.chunk[1] * 16) as f32,
+            self.pos.z + (self.chunk[2] * 16) as f32,
             self.phi.s,
             self.theta.s,
         )
