@@ -58,6 +58,7 @@ impl Picker {
             height: 1,
         };
 
+        //read pixel
         if read_target.left < width
         && read_target.bottom < height {
             self.tex
@@ -107,8 +108,9 @@ impl Picker {
             .into_image(None).unwrap()
             .raw_clear_buffer([20, 20, 20, 20i32]);
         let mut target = SimpleFrameBuffer::with_depth_buffer(display, &self.tex, &self.depth).unwrap();
-
         target.clear_depth(1.0);
+
+        //drawing
         target.draw(
             vert_src,
             idx_src,
