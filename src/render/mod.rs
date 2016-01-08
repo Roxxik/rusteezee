@@ -59,7 +59,6 @@ pub struct Renderer {
     text: Text,
     stats: bool,
     fill: bool,
-    picked_block: Option<[i32; 3]>,
     game: GameState,
 }
 
@@ -92,7 +91,6 @@ impl Renderer {
             fov: PI / 3.0,
             stats: false,
             fill: true,
-            picked_block: None,
             game: GameState::new(),
             display: display,
         })
@@ -118,11 +116,7 @@ impl Renderer {
         let vb_wire = VertexBuffer::immutable(&self.display, &wire_cube::VERTICES).unwrap();
         let ib_wire = IndexBuffer::immutable(&self.display, wire_cube::PRIMITIVE_TYPE, &wire_cube::INDICES).unwrap();
 
-        //let wires: Vec<Position> = self.game.stones.iter().min().map(|&s| Position { cube_pos: s }).into_iter().collect();
-        //let wires_buffer = VertexBuffer::new(&self.display, &wires).unwrap();
-        //let wires: Vec<Position> = self.picker.pick(&self.display).iter().map(|w| Position { cube_pos: (w[0], w[1], w[2]) }).collect();
         let mut wires_buffer: VertexBuffer<Position> = VertexBuffer::empty_dynamic(&self.display, 1).unwrap();
-
         loop {
             let mut target = self.display.draw();
             target.clear_color_and_depth((0.0, 0.0, 1.0, 1.0), 1.0);
@@ -133,19 +127,10 @@ impl Renderer {
             let vp: [[f32; 4]; 4]  = (perspective * view).into();
 
             {//pick from previous frame
-                use self::picking::PickingResult::*;
-
-                self.picked_block = None;
-                match self.picker.pick() {
-                    Some(Block(pos)) => {
-                        self.picked_block = Some(pos);
-                        //TODO calculate distance
-                    },
-                    _ => (),
-                }
+                self.game.set_selected_block(self.picker.pick());
             }
 
-            if let Some(pos) = self.picked_block {
+            if let Some(pos) = self.game.get_selected_block() {
                 wires_buffer.map_write().set(0, Position { cube_pos: pos });
             }
 
@@ -237,19 +222,12 @@ impl Renderer {
         use glium::glutin::Event as E;
         use glium::glutin::ElementState::Pressed;
         use glium::glutin::VirtualKeyCode as V;
+        use glium::glutin::MouseButton as M;
         match ev {
+            E::MouseInput(Pressed, M::Left) => Some(Attack),
             E::KeyboardInput(state, _, Some(key)) => {
                 let t = state == Pressed;
                 match (state, key) {
-                    (Pressed, V::Numpad1)   => Some(ToogleBlock { block: [-1, 0,  1] }),
-                    (Pressed, V::Numpad2)   => Some(ToogleBlock { block: [ 0, 0,  1] }),
-                    (Pressed, V::Numpad3)   => Some(ToogleBlock { block: [ 1, 0,  1] }),
-                    (Pressed, V::Numpad4)   => Some(ToogleBlock { block: [-1, 0,  0] }),
-                    (Pressed, V::Numpad5)   => Some(ToogleBlock { block: [ 0, 0,  0] }),
-                    (Pressed, V::Numpad6)   => Some(ToogleBlock { block: [ 1, 0,  0] }),
-                    (Pressed, V::Numpad7)   => Some(ToogleBlock { block: [-1, 0, -1] }),
-                    (Pressed, V::Numpad8)   => Some(ToogleBlock { block: [ 0, 0, -1] }),
-                    (Pressed, V::Numpad9)   => Some(ToogleBlock { block: [ 1, 0, -1] }),
                     (_      , V::W)      => Some(Move { dir: Forth, toogle: t }),
                     (_      , V::A)      => Some(Move { dir: Left , toogle: t }),
                     (_      , V::S)      => Some(Move { dir: Back , toogle: t }),
@@ -289,10 +267,10 @@ impl Renderer {
                 _ => if let Some(ev) = Renderer::convert(ev) {
                     use self::event::Event::*;
                     match ev {
-                        ToogleBlock { block: n }   => self.game.flip_stone(n),
                         Move { dir: d, toogle: t } => self.camera.mov (d, t),
                         Turn { dir: d, toogle: t } => self.camera.turn(d, t),
                         Fly  { dir: d, toogle: t } => self.camera.fly (d, t),
+                        Attack                     => self.game.attack(),
                         _ => {}
                     }
                 },

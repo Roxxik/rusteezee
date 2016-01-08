@@ -17,7 +17,6 @@ pub enum Event {
     Sneak {
         toogle: bool,
     },
-    ToogleBlock {
-        block: [i32; 3],
-    },
+    Attack,
+    UseItem,
 }
