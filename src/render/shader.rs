@@ -1,4 +1,4 @@
-mod cube {
+pub mod cube {
     pub const VERTEX: &'static str = r#"
         #version 140
 
@@ -9,17 +9,19 @@ mod cube {
         }
     "#;
     pub const GEOMETRY: &'static str = r#"
-        #version 140
+        #version 450
+
+        #extension GL_EXT_geometry_shader : enable
 
         layout(lines) in;
-        layout(triangle_strip​, max_vertices = 4) out;
+        layout(triangle_strip, max_vertices = 4) out;
 
         out vec2 g_texcoord;
 
         uniform ivec3 chunk;
         uniform mat4 vp;
 
-        void main(void) {
+        void main() {
             // Two input vertices will be the first and last vertex of the quad
             vec4 a = gl_PositionIn[0];
             vec4 d = gl_PositionIn[1];
@@ -37,13 +39,12 @@ mod cube {
             }
 
             // Emit the vertices of the quad
-            g_texcoord = (0.0, 0.0); gl_Position = vp * a; EmitVertex();
-            g_texcoord = (1.0, 0.0); gl_Position = vp * b; EmitVertex();
-            g_texcoord = (0.0, 1.0); gl_Position = vp * c; EmitVertex();
-            g_texcoord = (1.0, 1.0); gl_Position = vp * d; EmitVertex();
+            g_texcoord = vec2(0.0, 0.0); gl_Position = vp * (a + ivec4(chunk, 0) * 16); EmitVertex();
+            g_texcoord = vec2(1.0, 0.0); gl_Position = vp * (b + ivec4(chunk, 0) * 16); EmitVertex();
+            g_texcoord = vec2(0.0, 1.0); gl_Position = vp * (c + ivec4(chunk, 0) * 16); EmitVertex();
+            g_texcoord = vec2(1.0, 1.0); gl_Position = vp * (d + ivec4(chunk, 0) * 16); EmitVertex();
             EndPrimitive();
         }
-
     "#;
     pub const FRAGMENT: &'static str = r#"
         #version 140
@@ -58,36 +59,6 @@ mod cube {
         }
     "#;
 }
-
-pub const CUBE_VERTEX: &'static str = r#"
-    #version 140
-
-    in vec3 pos;
-    in vec2 tex_pos;
-    in ivec3 cube_pos;
-
-    out vec2 v_tex_pos;
-
-    uniform ivec3 chunk;
-    uniform mat4 vp;
-
-    void main() {
-        v_tex_pos = tex_pos;
-        gl_Position = vp * vec4(pos + cube_pos + (chunk * 16), 1.0);
-    }
-"#;
-pub const CUBE_FRAGMENT: &'static str = r#"
-    #version 140
-
-    in vec2 v_tex_pos;
-    out vec4 color;
-
-    uniform sampler2D tex;
-
-    void main() {
-        color = texture(tex, v_tex_pos);
-    }
-"#;
 
 pub const WIRE_VERTEX: &'static str = r#"
     #version 140
