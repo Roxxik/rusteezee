@@ -330,7 +330,7 @@ impl Renderer {
         return true;
     }
 
-    //returns mouse delta
+    //returns window mid
     fn fix_mouse(window: WinRef) -> (i32, i32) {
         let (x, y) = window.get_inner_size_points().unwrap();
         let (mid_x, mid_y) = (x as i32 / 2, y as i32 / 2);

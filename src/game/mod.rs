@@ -19,7 +19,7 @@ impl GameState {
         };
         for x in 0..40 {
             let (cx, bx) = (x / 16, x % 16);
-            game.place_block(([cx,0,0], [bx as u8,0,0]));
+            game.place_block(([cx, 0, 0], [bx as u8, 0, 0]));
         }
         game
     }
