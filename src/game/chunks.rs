@@ -30,10 +30,6 @@ impl Index<ChunkPos> for Chunks {
 
 impl IndexMut<ChunkPos> for Chunks {
     fn index_mut(&mut self, index: ChunkPos) -> &mut Chunk {
-        if !self.chunks.contains_key(&index) {
-            let chunk = Chunk::new();
-            self.chunks.insert(index, chunk);
-        }
-        self.chunks.get_mut(&index).unwrap()
+        self.chunks.entry(index).or_insert_with(Chunk::new)
     }
 }

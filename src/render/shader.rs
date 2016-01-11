@@ -1,32 +1,64 @@
-pub const CUBE_VERTEX: &'static str = r#"
-    #version 140
+pub mod cube {
+    pub const VERTEX: &'static str = r#"
+        #version 140
 
-    in vec3 pos;
-    in vec2 tex_pos;
-    in ivec3 cube_pos;
+        in vec3 corner;
 
-    out vec2 v_tex_pos;
+        void main() {
+            gl_Position = vec4(corner, 1.0);
+        }
+    "#;
+    pub const GEOMETRY: &'static str = r#"
+        #version 450
 
-    uniform ivec3 chunk;
-    uniform mat4 vp;
+        #extension GL_EXT_geometry_shader : enable
 
-    void main() {
-        v_tex_pos = tex_pos;
-        gl_Position = vp * vec4(pos + cube_pos + (chunk * 16), 1.0);
-    }
-"#;
-pub const CUBE_FRAGMENT: &'static str = r#"
-    #version 140
+        layout(lines) in;
+        layout(triangle_strip, max_vertices = 4) out;
 
-    in vec2 v_tex_pos;
-    out vec4 color;
+        out vec2 g_texcoord;
 
-    uniform sampler2D tex;
+        uniform ivec3 chunk;
+        uniform mat4 vp;
 
-    void main() {
-        color = texture(tex, v_tex_pos);
-    }
-"#;
+        void main() {
+            // Two input vertices will be the first and last vertex of the quad
+            vec4 a = gl_PositionIn[0];
+            vec4 d = gl_PositionIn[1];
+
+            // Calculate the middle two vertices of the quad
+            vec4 b = a;
+            vec4 c = a;
+
+            if(a.y == d.y) { // y same
+                c.z = d.z;
+                b.x = d.x;
+            } else { // x or z same
+                b.xz = d.xz;
+                c.y = d.y;
+            }
+
+            // Emit the vertices of the quad
+            g_texcoord = vec2(0.0, 0.0); gl_Position = vp * (a + ivec4(chunk, 0) * 16); EmitVertex();
+            g_texcoord = vec2(1.0, 0.0); gl_Position = vp * (b + ivec4(chunk, 0) * 16); EmitVertex();
+            g_texcoord = vec2(0.0, 1.0); gl_Position = vp * (c + ivec4(chunk, 0) * 16); EmitVertex();
+            g_texcoord = vec2(1.0, 1.0); gl_Position = vp * (d + ivec4(chunk, 0) * 16); EmitVertex();
+            EndPrimitive();
+        }
+    "#;
+    pub const FRAGMENT: &'static str = r#"
+        #version 140
+
+        in vec2 g_texcoord;
+        out vec4 color;
+
+        uniform sampler2D tex;
+
+        void main() {
+            color = texture(tex, g_texcoord);
+        }
+    "#;
+}
 
 pub const WIRE_VERTEX: &'static str = r#"
     #version 140
