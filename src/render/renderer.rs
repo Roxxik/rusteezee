@@ -61,7 +61,7 @@ impl Renderer {
                 shader::wire::FRAGMENT,
                 Some(shader::wire::GEOMETRY),
             )),
-            camera: Camera::at(Point3::new(5.0, 5.0, 5.0), Point::origin()),
+            camera: Camera::at(Point3::new(20.0, 20.0, 20.0), Point::origin()),
             fov: PI / 3.0,
             stats: false,
             fill: true,
