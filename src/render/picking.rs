@@ -4,20 +4,20 @@ use glium::{ self, Display, Surface, DrawParameters };
 use glium::framebuffer::{ DepthRenderBuffer, SimpleFrameBuffer };
 use glium::index::IndicesSource;
 use glium::program::Program;
-use glium::texture::{ IntegralTexture2d, UncompressedIntFormat, MipmapsOption, DepthFormat };
+use glium::texture::{ UnsignedTexture2d, UncompressedUintFormat, MipmapsOption, DepthFormat };
 use glium::texture::pixel_buffer::PixelBuffer;
 use glium::uniforms::Uniforms;
 use glium::vertex::MultiVerticesSource;
+use cgmath::Point3;
 
 use super::error::PickerCreationError;
-
-pub enum PickingResult {
-    Block([i32; 3])
-}
+use super::Face;
+use game::chunks::ChunkPos;
+use game::chunk::BlockPos;
 
 pub struct Picker {
-    pbo: PixelBuffer<(i32, i32, i32)>,
-    tex: IntegralTexture2d,
+    pbo: PixelBuffer<u32>,
+    tex: UnsignedTexture2d,
     depth: DepthRenderBuffer,
     program: Program,
 }
@@ -25,9 +25,9 @@ pub struct Picker {
 impl Picker {
     pub fn new(display: &Display) -> Result<Picker, PickerCreationError> {
         use super::shader;
-        let tex = try!(IntegralTexture2d::empty_with_format(
+        let tex = try!(UnsignedTexture2d::empty_with_format(
             display,
-            UncompressedIntFormat::I32I32I32,
+            UncompressedUintFormat::U32,
             MipmapsOption::NoMipmap,
             1024, 768,
         ));
@@ -42,14 +42,14 @@ impl Picker {
             depth: depth,
             program: try!(Program::from_source(
                 display,
-                shader::PICK_VERTEX,
-                shader::PICK_FRAGMENT,
-                None,
+                shader::picking::VERTEX,
+                shader::picking::FRAGMENT,
+                Some(shader::picking::GEOMETRY),
             )),
         })
     }
 
-    pub fn pick(&self) -> Option<[i32; 3]> {
+    pub fn pick(&self) -> Option<(ChunkPos, BlockPos, Face)> {
         let (width, height) = self.get_dimensions();
         let read_target = glium::Rect {
             left: std::cmp::max(width/2, 1) - 1,
@@ -66,31 +66,35 @@ impl Picker {
                 .first_layer()
                 .into_image(None).unwrap()
                 .raw_read_to_pixel_buffer(&read_target, &self.pbo);
-            return self.pbo.read().map(|x| [x[0].0, x[0].1, x[0].2]).ok();
+            return self.pbo.read().map(|x| x[0]).ok().and_then(|x| if x & 1 != 0 { Some(x) } else { None }).map(Picker::decode);
         } else {
             return None;
         }
     }
 
-    pub fn draw<'b, 'c, V, I, U>(
-        &mut self,
-        display: &Display,
-        vert_src: V,
-        idx_src: I,
-        uniforms: &U,
-        params: &DrawParameters,
-        dimensions: (u32, u32)
-    ) where
-        V: MultiVerticesSource<'b>,
-        I: Into<IndicesSource<'c>>,
-        U: Uniforms
-    {
-        //update target frame
+    fn decode(val: u32) -> (ChunkPos, BlockPos, Face) {
+        assert!(val & 1 != 0);
+        (
+            Point3::new(
+                ((val >> 20) & 0x3) as i32 - 1,
+                ((val >> 18) & 0x3) as i32 - 1,
+                ((val >> 16) & 0x3) as i32 - 1,
+            ),
+            Point3::new(
+                ((val >> 12) & 0xF) as u8,
+                ((val >>  8) & 0xF) as u8,
+                ((val >>  4) & 0xF) as u8,
+            ),
+            Face::from((val >> 1) & 0x7),
+        )
+    }
+
+    pub fn resize(&mut self, display: &Display, dimensions: (u32, u32)) {
         if self.get_dimensions() != dimensions {
             let (width, height) = dimensions;
-            self.tex = IntegralTexture2d::empty_with_format(
+            self.tex = UnsignedTexture2d::empty_with_format(
                 display,
-                UncompressedIntFormat::I32I32I32,
+                UncompressedUintFormat::U32,
                 MipmapsOption::NoMipmap,
                 width, height,
             ).unwrap();
@@ -100,6 +104,9 @@ impl Picker {
                 width, height,
             ).unwrap();
         }
+    }
+
+    pub fn clear(&mut self, display: &Display) {
         let mut target = SimpleFrameBuffer::with_depth_buffer(display, &self.tex, &self.depth).unwrap();
 
         //clearing the attachments
@@ -107,8 +114,23 @@ impl Picker {
             .main_level()
             .first_layer()
             .into_image(None).unwrap()
-            .raw_clear_buffer([20, 20, 20, 20i32]);
+            .raw_clear_buffer([0, 0, 0, 0u32]);
         target.clear_depth(1.0);
+    }
+
+    pub fn draw<'b, 'c, V, I, U>(
+        &mut self,
+        display: &Display,
+        vert_src: V,
+        idx_src: I,
+        uniforms: &U,
+        params: &DrawParameters,
+    ) where
+        V: MultiVerticesSource<'b>,
+        I: Into<IndicesSource<'c>>,
+        U: Uniforms
+    {
+        let mut target = SimpleFrameBuffer::with_depth_buffer(display, &self.tex, &self.depth).unwrap();
 
         //drawing
         target.draw(

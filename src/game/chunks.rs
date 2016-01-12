@@ -1,10 +1,12 @@
 use std::ops::{ Index, IndexMut };
 use std::collections::HashMap;
 
+use cgmath::{ Point, Point3 };
+
 use super::chunk::Chunk;
 
 
-pub type ChunkPos = [i32; 3];
+pub type ChunkPos = Point3<i32>;
 
 #[derive(Debug)]
 pub struct Chunks {
@@ -18,6 +20,23 @@ impl Chunks {
             chunks: HashMap::new(),
             empty: Chunk::new(),
         }
+    }
+
+    pub fn around(dist: u8, center: ChunkPos) -> Vec<(ChunkPos, ChunkPos)> {
+        let mut res = Vec::new();
+        let dist = dist as i32;
+        for x in -dist + 1..dist {
+            for y in -dist + 1..dist {
+                for z in -dist + 1..dist {
+                    let rel = Point3::new(x, y, z);
+                    res.push((
+                        center + rel.to_vec(),
+                        rel,
+                    ));
+                }
+            }
+        }
+        res
     }
 }
 

@@ -1,17 +1,17 @@
 pub mod cube {
     pub const VERTEX: &'static str = r#"
-        #version 140
+        #version 150
 
+        in uint face;
+        in uvec3 pos;
         in vec3 corner;
 
         void main() {
-            gl_Position = vec4(corner, 1.0);
+            gl_Position = vec4(corner + pos, 1.0);
         }
     "#;
     pub const GEOMETRY: &'static str = r#"
-        #version 450
-
-        #extension GL_EXT_geometry_shader : enable
+        #version 150
 
         layout(lines) in;
         layout(triangle_strip, max_vertices = 4) out;
@@ -23,8 +23,8 @@ pub mod cube {
 
         void main() {
             // Two input vertices will be the first and last vertex of the quad
-            vec4 a = gl_PositionIn[0];
-            vec4 d = gl_PositionIn[1];
+            vec4 a = gl_in[0].gl_Position;
+            vec4 d = gl_in[1].gl_Position;
 
             // Calculate the middle two vertices of the quad
             vec4 b = a;
@@ -47,7 +47,7 @@ pub mod cube {
         }
     "#;
     pub const FRAGMENT: &'static str = r#"
-        #version 140
+        #version 150
 
         in vec2 g_texcoord;
         out vec4 color;
@@ -60,57 +60,204 @@ pub mod cube {
     "#;
 }
 
-pub const WIRE_VERTEX: &'static str = r#"
-    #version 140
+pub mod wire {
+    pub const VERTEX: &'static str = r#"
+        #version 150
 
-    in vec3 pos;
-    in vec3 color;
-    in ivec3 cube_pos;
+        in vec3 corner;
 
-    out vec3 v_color;
+        void main() {
+            gl_Position = vec4(corner, 1.0);
+        }
+    "#;
+    pub const GEOMETRY: &'static str = r#"
+        #version 150
 
-    uniform mat4 vp;
+        layout(lines) in;
+        layout(line_strip, max_vertices = 16) out;
 
-    void main() {
-        v_color = color;
-        gl_Position = vp * vec4(pos + cube_pos, 1.0);
-    }
-"#;
-pub const WIRE_FRAGMENT: &'static str = r#"
-    #version 140
+        uniform mat4 vp;
+        uniform ivec3 chunk;
+        uniform uvec3 pos;
 
-    in vec3 v_color;
-    out vec4 color;
+        void main() {
 
-    void main() {
-        color = vec4(v_color, 1.0);
-    }
-"#;
+            vec4 a = gl_in[0].gl_Position;
+            vec4 h = gl_in[1].gl_Position;
 
-pub const PICK_VERTEX: &'static str = r#"
-    #version 140
+            vec4 b = a;
+            vec4 c = a;
+            vec4 d = a;
+            vec4 e = a;
+            vec4 f = a;
+            vec4 g = a;
 
-    in vec3 pos;
-    in vec3 color;
-    in ivec3 cube_pos;
+            // coordinates
+            // ^  z
+            // |
 
-    flat out ivec3 v_id;
+            // -> x
 
-    uniform ivec3 chunk;
-    uniform mat4 vp;
+            b.x  = h.x;
+            c.z  = h.z;
+            d.xz = h.xz;
+            e.y  = h.y;
+            f.xy = h.xy;
+            g.yz = h.yz;
 
-    void main() {
-        v_id = cube_pos;
-        gl_Position = vp * vec4(pos + cube_pos + (chunk * 16), 1.0);
-    }
-"#;
-pub const PICK_FRAGMENT: &'static str = r#"
-    #version 140
+            ivec4 offset = ivec4(ivec3(pos) + chunk * 16, 0);
 
-    flat in ivec3 v_id;
-    out ivec3 f_id;
+            a = vp * (a + offset);
+            b = vp * (b + offset);
+            c = vp * (c + offset);
+            d = vp * (d + offset);
+            e = vp * (e + offset);
+            f = vp * (f + offset);
+            g = vp * (g + offset);
+            h = vp * (h + offset);
 
-    void main() {
-        f_id = v_id;
-    }
-"#;
+            //top layer:
+            // ab
+            // cd
+
+            //bottom layer:
+            // ef
+            // gh
+
+            gl_Position = a; EmitVertex();
+            gl_Position = b; EmitVertex();
+            gl_Position = d; EmitVertex();
+            gl_Position = c; EmitVertex();
+            gl_Position = a; EmitVertex();
+            gl_Position = e; EmitVertex();
+            gl_Position = f; EmitVertex();
+            gl_Position = h; EmitVertex();
+            gl_Position = g; EmitVertex();
+            gl_Position = e; EmitVertex();
+            EndPrimitive();
+
+            gl_Position = b; EmitVertex();
+            gl_Position = f; EmitVertex();
+            EndPrimitive();
+
+            gl_Position = c; EmitVertex();
+            gl_Position = g; EmitVertex();
+            EndPrimitive();
+
+            gl_Position = d; EmitVertex();
+            gl_Position = h; EmitVertex();
+            EndPrimitive();
+        }
+    "#;
+    pub const FRAGMENT: &'static str = r#"
+        #version 150
+
+        out vec4 f_color;
+
+        uniform vec4 color;
+
+        void main() {
+            f_color = color;
+        }
+    "#;
+}
+
+pub mod picking {
+    pub const VERTEX: &'static str = r#"
+        #version 150
+
+        in uint face;
+        in uvec3 pos;
+        in vec3 corner;
+
+        flat out uint v_face;
+        flat out uvec3 v_pos;
+
+        void main() {
+            v_face = face;
+            v_pos = pos;
+            gl_Position = vec4(corner + pos, 1.0);
+        }
+    "#;
+    pub const GEOMETRY: &'static str = r#"
+        #version 150
+
+        layout(lines) in;
+        layout(triangle_strip, max_vertices = 4) out;
+
+        flat in uint v_face[2];
+        flat in uvec3 v_pos[2];
+
+        flat out uint g_id;
+
+        uniform ivec3 chunk;
+        uniform mat4 vp;
+
+        void main() {
+            if (
+                   chunk.x >= -1 && chunk.x <= 1
+                && chunk.y >= -1 && chunk.y <= 1
+                && chunk.z >= -1 && chunk.z <= 1
+            ){
+                //calculate face id
+                // first bit means empty -> 1 bit
+                // 6 faces               -> 3 bits
+                // 0..15 for pos         -> 4 bits * 3
+                // -1..1(0..2) for chunk -> 2 bits * 3
+                // total: 22 bits
+                uint id =
+                      uint(chunk.x) + 1u << 20u
+                    | uint(chunk.y) + 1u << 18u
+                    | uint(chunk.z) + 1u << 16u
+                    | uint(v_pos[0].x)   << 12u
+                    | uint(v_pos[0].y)   << 8u
+                    | uint(v_pos[0].z)   << 4u
+                    | uint(v_face[0])    << 1u
+                    | 1u;
+
+                // Two input vertices will be the first and last vertex of the quad
+                vec4 a = gl_in[0].gl_Position;
+                vec4 d = gl_in[1].gl_Position;
+
+                // Calculate the middle two vertices of the quad
+                vec4 b = a;
+                vec4 c = a;
+
+                if(a.y == d.y) { // y same
+                    c.z = d.z;
+                    b.x = d.x;
+                } else { // x or z same
+                    b.xz = d.xz;
+                    c.y = d.y;
+                }
+
+                // Emit the vertices of the quad
+                g_id = id; gl_Position = vp * (a + ivec4(chunk * 16, 0)); EmitVertex();
+                g_id = id; gl_Position = vp * (b + ivec4(chunk * 16, 0)); EmitVertex();
+                g_id = id; gl_Position = vp * (c + ivec4(chunk * 16, 0)); EmitVertex();
+                g_id = id; gl_Position = vp * (d + ivec4(chunk * 16, 0)); EmitVertex();
+                EndPrimitive();
+            }
+        }
+    "#;
+    pub const FRAGMENT: &'static str = r#"
+        #version 150
+
+        flat in uint g_id;
+        out uint f_id;
+
+        void main() {
+            f_id = g_id;
+        }
+    "#;
+    pub const FRAGMENT_ALT: &'static str = r#"
+            #version 150
+
+            flat in uint g_id;
+            out vec4 color;
+
+            void main() {
+                color = vec4(g_id, g_id, g_id, 1.0);
+            }
+    "#;
+}
