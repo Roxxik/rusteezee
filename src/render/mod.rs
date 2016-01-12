@@ -1,5 +1,4 @@
 pub mod camera;
-pub mod cube;
 pub mod error;
 pub mod event;
 pub mod renderer;
@@ -7,7 +6,6 @@ pub mod shader;
 pub mod picking;
 pub mod text;
 pub mod texture;
-pub mod wire_cube;
 
 use cgmath::Vector3;
 

@@ -71,7 +71,7 @@ impl Renderer {
     }
 
     pub fn game_loop(mut self) {
-
+        //TODO move to own module
         let image = image::load(::std::io::Cursor::new(&include_bytes!(
             "../../assets/textures/dirt.png"
         )[..]),image::PNG).unwrap().to_rgba();
