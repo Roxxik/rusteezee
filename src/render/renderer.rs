@@ -6,7 +6,6 @@ use image;
 use cgmath::{ Point, Point3, Matrix4 };
 use glium::{ self, glutin, DisplayBuild, Surface, Display, VertexBuffer };
 use glium::program::Program;
-use glium::glutin::Event as GlEvent;
 use glium::backend::glutin_backend::WinRef;
 use glium::draw_parameters::DrawParameters;
 use glium::index::{ NoIndices, PrimitiveType };
@@ -204,39 +203,6 @@ impl Renderer {
         }
     }
 
-
-    fn convert(ev: GlEvent) -> Option<Event> {
-        use glium::glutin::Event as E;
-        use glium::glutin::ElementState::Pressed;
-        use glium::glutin::VirtualKeyCode as V;
-        use glium::glutin::MouseButton as M;
-        use super::event::Event::*;
-        use super::HDirection::*;
-        use super::VDirection::*;
-        match ev {
-            E::MouseInput(Pressed, M::Left ) => Some(Attack),
-            E::MouseInput(Pressed, M::Right) => Some(UseItem),
-            E::KeyboardInput(state, _, Some(key)) => {
-                let t = state == Pressed;
-                match (state, key) {
-                    (_      , V::W)      => Some(Move { dir: Forth, toogle: t }),
-                    (_      , V::A)      => Some(Move { dir: Left , toogle: t }),
-                    (_      , V::S)      => Some(Move { dir: Back , toogle: t }),
-                    (_      , V::D)      => Some(Move { dir: Right, toogle: t }),
-                    (_      , V::Up)     => Some(Turn { dir: Forth, toogle: t }),
-                    (_      , V::Left)   => Some(Turn { dir: Left , toogle: t }),
-                    (_      , V::Down)   => Some(Turn { dir: Back , toogle: t }),
-                    (_      , V::Right)  => Some(Turn { dir: Right, toogle: t }),
-                    (_      , V::Space)  => Some(Fly  { dir: Up   , toogle: t }),
-                    (_      , V::LShift) => Some(Fly  { dir: Down , toogle: t }),
-                    _ => None,
-                }
-
-            },
-            _ => None,
-        }
-    }
-
     fn handle_events(&mut self) -> bool {
         for ev in self.display.poll_events() {
             use glium::glutin::Event as E;
@@ -255,9 +221,9 @@ impl Renderer {
                 E::KeyboardInput(Pressed, _, Some(F1)) => self.fill = !self.fill,
                 E::KeyboardInput(Pressed, _, Some(F3)) => self.stats = ! self.stats,
                 E::KeyboardInput(Pressed, _, Some(Escape)) => return false,
-                _ => if let Some(ev) = Renderer::convert(ev) {
+                _ => {
                     use super::event::Event::*;
-                    match ev {
+                    match Event::from(ev) {
                         Move { dir: d, toogle: t } => self.camera.mov (d, t),
                         Turn { dir: d, toogle: t } => self.camera.turn(d, t),
                         Fly  { dir: d, toogle: t } => self.camera.fly (d, t),
