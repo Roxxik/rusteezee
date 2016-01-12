@@ -11,7 +11,7 @@ use glium::vertex::MultiVerticesSource;
 use cgmath::Point3;
 
 use super::error::PickerCreationError;
-use super::Face;
+use types::Face;
 use logic::chunks::ChunkPos;
 use logic::chunk::BlockPos;
 

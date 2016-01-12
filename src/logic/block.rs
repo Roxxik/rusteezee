@@ -1,6 +1,6 @@
 use cgmath::Point3;
 
-use ::render::Face;
+use types::Face;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Block {
@@ -11,7 +11,7 @@ pub enum Block {
 impl Block {
     pub fn as_faces(self) -> Vec<(Face, Point3<f32>)> {
         if self != Block::Air {
-            use ::render::Face::*;
+            use types::Face::*;
             vec![
                 (Top    , Point3::new(0.0, 1.0, 0.0)),
                 (Top    , Point3::new(1.0, 1.0, 1.0)),

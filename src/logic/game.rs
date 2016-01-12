@@ -1,7 +1,7 @@
 
 use cgmath::{ Point, Point3 };
 
-use ::render::Face;
+use types::Face;
 use super::chunks::{ Chunks, ChunkPos };
 use super::chunk::{ Chunk, BlockPos };
 use super::block::Block;

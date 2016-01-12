@@ -14,7 +14,7 @@ const CAM_DIR_STEP: Deg<f32> = Deg { s: 0.5 };
 const UP: Vector3<f32> = Vector3{ x: 0.0, y: 1.0, z: 0.0 };
 
 #[derive(Clone, Copy, Debug)]
-enum Direction {
+enum Movements {
     Forth,
     Back,
     Up,
@@ -27,9 +27,9 @@ enum Direction {
     TurnRight,
 }
 
-impl Direction {
-    pub fn moves() -> Vec<Direction> {
-        use self::Direction::*;
+impl Movements {
+    pub fn moves() -> Vec<Movements> {
+        use self::Movements::*;
         vec![
             Forth,
             Back,
@@ -40,8 +40,8 @@ impl Direction {
         ]
     }
 
-    pub fn turns() -> Vec<Direction> {
-        use self::Direction::*;
+    pub fn turns() -> Vec<Movements> {
+        use self::Movements::*;
         vec![
             TurnUp,
             TurnDown,
@@ -51,7 +51,7 @@ impl Direction {
     }
 
     pub fn to_vec(&self, phi: Deg<f32>) -> Vector3<f32> {
-        use self::Direction::*;
+        use self::Movements::*;
         Vector3::from(match *self {
             Up    => (0.0,  1.0, 0.0),
             Down  => (0.0, -1.0, 0.0),
@@ -75,7 +75,7 @@ impl Direction {
     }
 
     fn to_angle(&self) -> Option<Deg<f32>> {
-        use self::Direction::*;
+        use self::Movements::*;
         match *self {
             Forth => Some(0.0),
             Back  => Some(180.0),
@@ -156,39 +156,39 @@ impl Camera {
 
     pub fn mov(&mut self, dir: HDirection, toogle: bool) {
         use super::HDirection as H;
-        use self::Direction as D;
+        use self::Movements as M;
         let dir = match dir {
-            H::Forth => D::Forth,
-            H::Back  => D::Back,
-            H::Left  => D::Left,
-            H::Right => D::Right,
+            H::Forth => M::Forth,
+            H::Back  => M::Back,
+            H::Left  => M::Left,
+            H::Right => M::Right,
         };
         self.set_dir(dir, toogle);
     }
 
     pub fn turn(&mut self, dir: HDirection, toogle: bool) {
         use super::HDirection as H;
-        use self::Direction as D;
+        use self::Movements as M;
         let dir = match dir {
-            H::Forth => D::TurnUp,
-            H::Back  => D::TurnDown,
-            H::Left  => D::TurnLeft,
-            H::Right => D::TurnRight,
+            H::Forth => M::TurnUp,
+            H::Back  => M::TurnDown,
+            H::Left  => M::TurnLeft,
+            H::Right => M::TurnRight,
         };
         self.set_dir(dir, toogle);
     }
 
     pub fn fly(&mut self, dir: VDirection, toogle: bool) {
         use super::VDirection as V;
-        use self::Direction as D;
+        use self::Movements as M;
         let dir = match dir {
-            V::Up   => D::Up,
-            V::Down => D::Down,
+            V::Up   => M::Up,
+            V::Down => M::Down,
         };
         self.set_dir(dir, toogle);
     }
 
-    fn set_dir(&mut self, dir: Direction, toogle: bool) {
+    fn set_dir(&mut self, dir: Movements, toogle: bool) {
         if toogle {
             self.state.insert(dir as usize);
         } else {
@@ -201,9 +201,9 @@ impl Camera {
     }
 
     pub fn update(&mut self) {
-        for turn in Direction::turns() {
+        for turn in Movements::turns() {
             if self.state.contains(&(turn as usize)) {
-                use self::Direction::*;
+                use self::Movements::*;
                 match turn {
                     TurnUp    => self.theta = self.theta + CAM_DIR_STEP,
                     TurnDown  => self.theta = self.theta - CAM_DIR_STEP ,
@@ -215,7 +215,7 @@ impl Camera {
         }
         self.norm_phi();
         self.norm_theta();
-        for dir in Direction::moves() {
+        for dir in Movements::moves() {
             if self.state.contains(&(dir as usize)) {
                 self.pos = self.pos + dir.to_vec(self.phi);
             }
