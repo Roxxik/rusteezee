@@ -12,8 +12,8 @@ use std::f32::consts::PI;
 use std::collections::HashMap;
 
 use image;
-use cgmath::{ Point, Point3, Matrix4 };
-use glium::{ self, glutin, DisplayBuild, Surface, Display, VertexBuffer, IndexBuffer };
+use cgmath::{ Point, Point3, Matrix4, Vector3 };
+use glium::{ self, glutin, DisplayBuild, Surface, Display, VertexBuffer };
 use glium::program::Program;
 use glium::glutin::Event as GlEvent;
 use glium::backend::glutin_backend::WinRef;
@@ -26,31 +26,28 @@ use self::error::RendererCreationError;
 use self::event::Event;
 use self::picking::Picker;
 use game::GameState;
-use game::chunks::ChunkPos;
-use game::chunk::{ Chunk, BlockPos };
-use game::block::Block;
+use game::chunks::{ Chunks, ChunkPos };
 
 const MOUSE_SENSIVITY: f32 = 0.1;
 
 #[derive(Clone, Copy, Debug)]
-pub struct Position {
-    pub cube_pos: [u8; 3],
-}
-implement_vertex!(Position, cube_pos);
-
-#[derive(Clone, Copy, Debug)]
-pub struct Face {
-    pub top_left: [f32; 3],
-    pub bottom_right: [f32; 3],
-}
-
-#[derive(Clone, Copy, Debug)]
 pub struct FaceVertex {
+    pub face: u8,
+    pub pos: [u8; 3],
+    pub corner: [f32; 3],
+
+}
+implement_vertex!(FaceVertex, face, pos, corner);
+
+#[derive(Clone, Copy, Debug)]
+pub struct WireVertex {
     pub corner: [f32; 3],
 }
-implement_vertex!(FaceVertex, corner);
+implement_vertex!(WireVertex, corner);
 
-pub enum Faces {
+
+#[derive(Clone, Copy, Debug)]
+pub enum Face {
     Top,
     Bottom,
     North,
@@ -59,9 +56,9 @@ pub enum Faces {
     West,
 }
 
-impl Faces {
-    pub fn values() -> Vec<Faces> {
-        use self::Faces::*;
+impl Face {
+    pub fn values() -> Vec<Face> {
+        use self::Face::*;
         vec![
             Top,
             Bottom,
@@ -72,17 +69,25 @@ impl Faces {
         ]
     }
 
-    //pub fn to_vec(self) -> BlockPos {
-    //    use self::Faces::*;
-    //    match self {
-    //        Top    => [ 0,  1,  0],
-    //        Bottom => [ 0, -1,  0],
-    //        North  => [ 0,  0, -1],
-    //        East   => [ 1,  0,  0],
-    //        South  => [ 0,  0,  1],
-    //        West   => [-1,  0,  0],
-    //    }
-    //}
+    pub fn to_vec(self) -> Vector3<i8> {
+        use self::Face::*;
+        match self {
+            Top    => Vector3::new( 0,  1,  0),
+            Bottom => Vector3::new( 0, -1,  0),
+            North  => Vector3::new( 0,  0, -1),
+            East   => Vector3::new( 1,  0,  0),
+            South  => Vector3::new( 0,  0,  1),
+            West   => Vector3::new(-1,  0,  0),
+        }
+    }
+}
+
+impl From<u32> for Face {
+    fn from(x: u32) -> Face {
+        use self::Face::*;
+        assert!(Top as u32 <= x && x <= West as u32);
+        unsafe { ::std::mem::transmute(x as u8) }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -116,6 +121,7 @@ impl Renderer {
     pub fn new() -> Result<Renderer, RendererCreationError<glutin::CreationError>> {
         let display = try!(glutin::WindowBuilder::new()
             .with_depth_buffer(24)
+            .with_vsync()
             .build_glium());
         {
             let window = display.get_window().unwrap();
@@ -133,9 +139,9 @@ impl Renderer {
             )),
             wire_program: try!(Program::from_source(
                 &display,
-                shader::WIRE_VERTEX,
-                shader::WIRE_FRAGMENT,
-                None,
+                shader::wire::VERTEX,
+                shader::wire::FRAGMENT,
+                Some(shader::wire::GEOMETRY),
             )),
             camera: Camera::at(Point3::new(5.0, 5.0, 5.0), Point::origin()),
             fov: PI / 3.0,
@@ -144,27 +150,6 @@ impl Renderer {
             game: GameState::new(),
             display: display,
         })
-    }
-
-    fn around(dist: u8, center: ChunkPos) -> Vec<(ChunkPos, ChunkPos)> {
-        let mut res = Vec::new();
-        let dist = dist as i32;
-        for x in -dist + 1..dist {
-            for y in -dist + 1..dist {
-                for z in -dist + 1..dist {
-                    let rel = [x, y, z];
-                    res.push((
-                        [
-                            center[0] + rel[0],
-                            center[1] + rel[1],
-                            center[2] + rel[2],
-                        ],
-                        rel,
-                    ));
-                }
-            }
-        }
-        res
     }
 
     pub fn game_loop(mut self) {
@@ -179,14 +164,10 @@ impl Renderer {
             .magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest)
             .minify_filter(glium::uniforms::MinifySamplerFilter::Nearest);
 
-
-        //let vb_cube = VertexBuffer::immutable(&self.display, &cube::VERTICES).unwrap();
-        //let ib_cube = IndexBuffer::immutable(&self.display, cube::PRIMITIVE_TYPE, &cube::INDICES).unwrap();
-
-        let vb_wire = VertexBuffer::immutable(&self.display, &wire_cube::VERTICES).unwrap();
-        let ib_wire = IndexBuffer::immutable(&self.display, wire_cube::PRIMITIVE_TYPE, &wire_cube::INDICES).unwrap();
-
-        let mut wires_buffer: VertexBuffer<Position> = VertexBuffer::empty_dynamic(&self.display, 1).unwrap();
+        let wires_buffer: VertexBuffer<WireVertex> = VertexBuffer::immutable(&self.display, &[
+            WireVertex { corner: [1.0, 1.0, 1.0] },
+            WireVertex { corner: [0.0, 0.0, 0.0] },
+        ]).unwrap();
 
         let mut chunks: HashMap<ChunkPos, VertexBuffer<FaceVertex>> = HashMap::new();
         let view_dist = 2;
@@ -194,22 +175,28 @@ impl Renderer {
             //create chunk buffers
             chunks.clear();//TODO this needs some optimization
             let center = self.camera.get_chunk_pos();
-            let surroundings = Renderer::around(view_dist, center);
+            let surroundings = Chunks::around(view_dist, center);
             for (pos, rel) in surroundings {
                 chunks.insert(rel, VertexBuffer::new(&self.display, &self.game.chunk(pos).as_faces()).unwrap());
             }
 
-            //{//pick from previous frame
-            //    self.game.set_selected_block(self.picker.pick());
-            //}
-
-            //if let Some(pos) = self.game.get_selected_block() {
-            //    wires_buffer.map_write().set(0, Position { cube_pos: pos });
-            //}
+            {//pick from previous frame
+                let pick_res = self.picker.pick().map(|(c, b, f)| {
+                    (
+                        self.camera.get_chunk_pos() + c.to_vec(),
+                        b,
+                        f
+                    )
+                });
+                self.game.set_selected_block(pick_res);
+            }
 
             // draw
             let mut target = self.display.draw();
+            self.picker.resize(&self.display, target.get_dimensions());
+
             target.clear_color_and_depth((0.0, 0.0, 1.0, 1.0), 1.0);
+            self.picker.clear(&self.display);
 
             let perspective = self.get_perspective(target.get_dimensions());
             let view = self.camera.view_matrix();
@@ -220,14 +207,13 @@ impl Renderer {
 
             for (pos, vb) in chunks.iter() {
                 let pos = (pos[0], pos[1], pos[2]);
-                //self.picker.draw(
-                //    &self.display,
-                //    (&vb_cube, vb.per_instance().unwrap()),
-                //    &ib_cube,
-                //    &uniform! { vp: vp, chunk: pos },
-                //    &params,
-                //    target.get_dimensions(),
-                //);
+                self.picker.draw(
+                    &self.display,
+                    vb,
+                    &NoIndices(PrimitiveType::LinesList),
+                    &uniform! { vp: vp, chunk: pos },
+                    &params
+                );
 
                 target.draw(
                     vb,
@@ -241,13 +227,17 @@ impl Renderer {
                     &params
                 ).unwrap();
             }
-            //target.draw(
-            //    (&vb_wire, wires_buffer.per_instance().unwrap()),
-            //    &ib_wire,
-            //    &self.wire_program,
-            //    &uniform! { vp: vp },
-            //    &params
-            //).unwrap();
+            if let Some((chunk, pos, _)) = self.game.get_selected_block() {
+                let pos: [u32; 3] = pos.to_vec().cast().into();
+                let chunk: [i32; 3] = (chunk - self.camera.get_chunk_pos()).into();
+                target.draw(
+                    &wires_buffer,
+                    &NoIndices(PrimitiveType::LinesList),
+                    &self.wire_program,
+                    &uniform! { vp: vp, pos: pos, chunk: chunk, color: [0.0, 0.0, 0.0, 1.0f32] },
+                    &params
+                ).unwrap();
+            }
 
             if self.stats {
                 self.text.draw(&mut target, &format!("{}", self.camera), (1.0, 1.0, 0.0, 1.0));
@@ -306,7 +296,8 @@ impl Renderer {
         use glium::glutin::VirtualKeyCode as V;
         use glium::glutin::MouseButton as M;
         match ev {
-            E::MouseInput(Pressed, M::Left) => Some(Attack),
+            E::MouseInput(Pressed, M::Left ) => Some(Attack),
+            E::MouseInput(Pressed, M::Right) => Some(UseItem),
             E::KeyboardInput(state, _, Some(key)) => {
                 let t = state == Pressed;
                 match (state, key) {
@@ -353,6 +344,7 @@ impl Renderer {
                         Turn { dir: d, toogle: t } => self.camera.turn(d, t),
                         Fly  { dir: d, toogle: t } => self.camera.fly (d, t),
                         Attack                     => self.game.attack(),
+                        UseItem                    => self.game.place(),
                         _ => {}
                     }
                 },

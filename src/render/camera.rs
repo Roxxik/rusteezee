@@ -98,9 +98,10 @@ pub struct Camera {
 
 impl Camera {
     pub fn new(pos: Point3<f32>, phi: Deg<f32>, theta: Deg<f32>) -> Camera {
-        let mut cam = Camera { pos: pos, chunk: [0,0,0], phi: phi, theta: theta, state: BitSet::new() };
+        let mut cam = Camera { pos: pos, chunk: Point::origin(), phi: phi, theta: theta, state: BitSet::new() };
         cam.norm_phi();
         cam.norm_theta();
+        cam.update();
         cam
     }
 
