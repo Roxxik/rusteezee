@@ -8,9 +8,9 @@ extern crate image;
 extern crate bit_set;
 
 mod render;
-mod game;
+mod logic;
 
-use render::Renderer;
+use render::renderer::Renderer;
 
 //#[derive(Copy, Clone)]
 //enum Face {

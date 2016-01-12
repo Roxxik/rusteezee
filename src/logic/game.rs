@@ -1,13 +1,10 @@
-pub mod chunk;
-pub mod chunks;
-pub mod block;
 
 use cgmath::{ Point, Point3 };
 
 use ::render::Face;
-use self::chunks::{ Chunks, ChunkPos };
-use self::chunk::{ Chunk, BlockPos };
-use self::block::Block;
+use super::chunks::{ Chunks, ChunkPos };
+use super::chunk::{ Chunk, BlockPos };
+use super::block::Block;
 
 pub struct GameState {
     chunks: Chunks,

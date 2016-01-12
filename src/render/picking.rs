@@ -12,8 +12,8 @@ use cgmath::Point3;
 
 use super::error::PickerCreationError;
 use super::Face;
-use game::chunks::ChunkPos;
-use game::chunk::BlockPos;
+use logic::chunks::ChunkPos;
+use logic::chunk::BlockPos;
 
 pub struct Picker {
     pbo: PixelBuffer<u32>,

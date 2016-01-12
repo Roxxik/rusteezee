@@ -6,7 +6,7 @@ use cgmath::{ Vector3, Point, Point3, Angle, Deg, Vector, EuclideanVector, Matri
 use bit_set::BitSet;
 
 use super::{ HDirection, VDirection };
-use ::game::chunks::ChunkPos;
+use logic::chunks::ChunkPos;
 
 const CAM_POS_STEP: f32 = 0.1;
 const CAM_DIR_STEP: Deg<f32> = Deg { s: 0.5 };
