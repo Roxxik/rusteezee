@@ -1,6 +1,5 @@
 pub mod camera;
 pub mod error;
-pub mod event;
 pub mod renderer;
 pub mod shader;
 pub mod picking;
@@ -20,18 +19,3 @@ pub struct WireVertex {
     pub corner: [f32; 3],
 }
 implement_vertex!(WireVertex, corner);
-
-
-#[derive(Clone, Copy, Debug)]
-pub enum HDirection {
-    Forth,
-    Back,
-    Left,
-    Right,
-}
-
-#[derive(Clone, Copy, Debug)]
-pub enum VDirection {
-    Up,
-    Down,
-}

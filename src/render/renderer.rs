@@ -13,9 +13,9 @@ use glium::index::{ NoIndices, PrimitiveType };
 use super::camera::Camera;
 use super::text::Text;
 use super::error::RendererCreationError;
-use super::event::Event;
 use super::picking::Picker;
 use super::{ shader, WireVertex, FaceVertex };
+use ::event::Event;
 use ::logic::game::GameState;
 use ::logic::chunks::{ Chunks, ChunkPos };
 
@@ -222,7 +222,7 @@ impl Renderer {
                 E::KeyboardInput(Pressed, _, Some(F3)) => self.stats = ! self.stats,
                 E::KeyboardInput(Pressed, _, Some(Escape)) => return false,
                 _ => {
-                    use super::event::Event::*;
+                    use ::event::Event::*;
                     match Event::from(ev) {
                         Move { dir: d, toogle: t } => self.camera.mov (d, t),
                         Turn { dir: d, toogle: t } => self.camera.turn(d, t),

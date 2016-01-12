@@ -7,8 +7,9 @@ extern crate cgmath;
 extern crate image;
 extern crate bit_set;
 
-mod render;
+mod event;
 mod logic;
+mod render;
 mod types;
 
 

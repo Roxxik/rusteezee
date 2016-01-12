@@ -5,7 +5,7 @@ use cgmath;
 use cgmath::{ Vector3, Point, Point3, Angle, Deg, Vector, EuclideanVector, Matrix4 };
 use bit_set::BitSet;
 
-use super::{ HDirection, VDirection };
+use types::{ HDirection, VDirection };
 use logic::chunks::ChunkPos;
 
 const CAM_POS_STEP: f32 = 0.1;
@@ -155,7 +155,7 @@ impl Camera {
     }
 
     pub fn mov(&mut self, dir: HDirection, toogle: bool) {
-        use super::HDirection as H;
+        use types::HDirection as H;
         use self::Movements as M;
         let dir = match dir {
             H::Forth => M::Forth,
@@ -167,7 +167,7 @@ impl Camera {
     }
 
     pub fn turn(&mut self, dir: HDirection, toogle: bool) {
-        use super::HDirection as H;
+        use types::HDirection as H;
         use self::Movements as M;
         let dir = match dir {
             H::Forth => M::TurnUp,
@@ -179,7 +179,7 @@ impl Camera {
     }
 
     pub fn fly(&mut self, dir: VDirection, toogle: bool) {
-        use super::VDirection as V;
+        use types::VDirection as V;
         use self::Movements as M;
         let dir = match dir {
             V::Up   => M::Up,

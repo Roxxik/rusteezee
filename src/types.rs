@@ -43,3 +43,17 @@ impl From<u32> for Face {
         unsafe { ::std::mem::transmute(x as u8) }
     }
 }
+
+#[derive(Clone, Copy, Debug)]
+pub enum HDirection {
+    Forth,
+    Back,
+    Left,
+    Right,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum VDirection {
+    Up,
+    Down,
+}

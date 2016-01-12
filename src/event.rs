@@ -1,6 +1,6 @@
 use glium::glutin::Event as GlEvent;
 
-use super::{ HDirection, VDirection };
+use types::{ HDirection, VDirection };
 
 pub enum Event {
     Turn {
@@ -31,8 +31,8 @@ impl From<GlEvent> for Event {
         use glium::glutin::VirtualKeyCode as V;
         use glium::glutin::MouseButton as M;
         use super::event::Event::*;
-        use super::HDirection::*;
-        use super::VDirection::*;
+        use types::HDirection::*;
+        use types::VDirection::*;
         match ev {
             E::MouseInput(Pressed, M::Left ) => Attack,
             E::MouseInput(Pressed, M::Right) => UseItem,
