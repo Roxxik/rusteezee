@@ -10,6 +10,7 @@ pub type BlockPos = Point3<u8>;
 #[derive(Copy, Clone, Debug)]
 pub struct Chunk {
     blocks: [[[Block; 16]; 16]; 16],
+    dirty: bool,
 }
 
 impl Chunk {
@@ -19,8 +20,17 @@ impl Chunk {
 
     pub fn new_with(block: Block) -> Chunk {
         Chunk {
-            blocks: [[[block; 16]; 16]; 16]
+            blocks: [[[block; 16]; 16]; 16],
+            dirty: false,
         }
+    }
+
+    pub fn clear_dirty(&mut self) {
+        self.dirty = false;
+    }
+
+    pub fn is_dirty(&self) -> bool {
+        self.dirty
     }
 
     pub fn as_faces(&self) -> Vec<FaceVertex> {
@@ -52,6 +62,7 @@ impl Index<BlockPos> for Chunk {
 
 impl IndexMut<BlockPos> for Chunk {
     fn index_mut(&mut self, index: BlockPos) -> &mut Block {
+        self.dirty = true;
         &mut self.blocks[index.x as usize][index.y as usize][index.z as usize]
     }
 }

@@ -22,17 +22,14 @@ impl Chunks {
         }
     }
 
-    pub fn around(dist: u8, center: ChunkPos) -> Vec<(ChunkPos, ChunkPos)> {
+    pub fn around(dist: u8, center: ChunkPos) -> Vec<ChunkPos> {
         let mut res = Vec::new();
         let dist = dist as i32;
         for x in -dist + 1..dist {
             for y in -dist + 1..dist {
                 for z in -dist + 1..dist {
                     let rel = Point3::new(x, y, z);
-                    res.push((
-                        center + rel.to_vec(),
-                        rel,
-                    ));
+                    res.push(center + rel.to_vec());
                 }
             }
         }

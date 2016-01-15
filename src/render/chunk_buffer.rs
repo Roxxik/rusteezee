@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use glium::{ Display, VertexBuffer };
-use cgmath::Point;
+use cgmath::{ Point, Point3 };
 
 use render::FaceVertex;
 use logic::game::GameState;
@@ -24,14 +24,21 @@ impl ChunkBuffer {
     }
 
     pub fn update(&mut self, display: &Display, game: &GameState, center: ChunkPos) {
-        self.buffer.clear();
+        let mut new_buf = HashMap::new();
         let surroundings = Chunks::around(self.view_dist, center);
-        for (pos, rel) in surroundings {
-            self.buffer.insert(rel, VertexBuffer::new(display, &game.chunk(pos).as_faces()).unwrap());
+        for pos in surroundings {
+            let vb = self.buffer.remove(&pos);
+            if vb.is_none() || game.chunk(pos).is_dirty() {
+                new_buf.insert(pos, VertexBuffer::new(display, &game.chunk(pos).as_faces()).unwrap());
+            } else if let Some(vb) = vb {
+                new_buf.insert(pos, vb);
+            }
         }
+        self.buffer = new_buf;
+        self.center = center;
     }
 
-    pub fn iter(&self) -> ::std::collections::hash_map::Iter<ChunkPos, VertexBuffer<FaceVertex>> {
-        self.buffer.iter()
+    pub fn iter<'a>(&'a self) -> Vec<(ChunkPos, &'a VertexBuffer<FaceVertex>)> {
+        self.buffer.iter().map(|(pos, vb)| (Point3::from_vec(*pos - self.center), vb)).collect()
     }
 }
