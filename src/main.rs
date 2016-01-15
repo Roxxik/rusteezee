@@ -12,9 +12,7 @@ mod logic;
 mod render;
 mod types;
 
-
 use render::renderer::Renderer;
-
 
 fn main() {
     match Renderer::new() {

@@ -22,6 +22,7 @@ impl GameState {
                 game.chunks[Point3::new(x, 0, z)] = Chunk::new_with(Block::Dirt);
             }
         }
+        //game.chunks[Point3::new(0,0,0)][Point3::new(0,0,0)] = Block::Dirt;
         game
     }
 

@@ -12,6 +12,5 @@ bit-vec = "0.4.2"
 [dependencies.glium_text]
 path = "../glium_text"
 
-
 [dependencies.glium]
 path = "../glium"

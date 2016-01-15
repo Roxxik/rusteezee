@@ -5,6 +5,7 @@ pub mod shader;
 pub mod picking;
 pub mod text;
 pub mod texture;
+pub mod chunk_buffer;
 
 #[derive(Clone, Copy, Debug)]
 pub struct FaceVertex {

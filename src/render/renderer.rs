@@ -1,6 +1,5 @@
 
 use std::f32::consts::PI;
-use std::collections::HashMap;
 
 use image;
 use cgmath::{ Point, Point3, Matrix4 };
@@ -14,10 +13,10 @@ use super::camera::Camera;
 use super::text::Text;
 use super::error::RendererCreationError;
 use super::picking::Picker;
-use super::{ shader, WireVertex, FaceVertex };
+use super::{ shader, WireVertex };
+use super::chunk_buffer::ChunkBuffer;
 use ::event::Event;
 use ::logic::game::GameState;
-use ::logic::chunks::{ Chunks, ChunkPos };
 
 const MOUSE_SENSIVITY: f32 = 0.1;
 
@@ -86,16 +85,9 @@ impl Renderer {
             WireVertex { corner: [0.0, 0.0, 0.0] },
         ]).unwrap();
 
-        let mut chunks: HashMap<ChunkPos, VertexBuffer<FaceVertex>> = HashMap::new();
-        let view_dist = 2;
+        let mut chunk_buffer = ChunkBuffer::new(2);
         loop {
-            //create chunk buffers
-            chunks.clear();//TODO this needs some optimization
-            let center = self.camera.get_chunk_pos();
-            let surroundings = Chunks::around(view_dist, center);
-            for (pos, rel) in surroundings {
-                chunks.insert(rel, VertexBuffer::new(&self.display, &self.game.chunk(pos).as_faces()).unwrap());
-            }
+            chunk_buffer.update(&self.display, &self.game, self.camera.get_chunk_pos());
 
             {//pick from previous frame
                 let pick_res = self.picker.pick().map(|(c, b, f)| {
@@ -122,8 +114,8 @@ impl Renderer {
 
             let params = self.get_params();
 
-            for (pos, vb) in chunks.iter() {
-                let pos = (pos[0], pos[1], pos[2]);
+            for (pos, vb) in chunk_buffer.iter() {
+                let pos = [pos[0], pos[1], pos[2]];
                 self.picker.draw(
                     &self.display,
                     vb,

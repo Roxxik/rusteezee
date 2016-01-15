@@ -38,10 +38,10 @@
             }
 
             // Emit the vertices of the quad
-            g_texcoord = vec2(0.0, 0.0); gl_Position = vp * (a + ivec4(chunk, 0) * 16); EmitVertex();
-            g_texcoord = vec2(1.0, 0.0); gl_Position = vp * (b + ivec4(chunk, 0) * 16); EmitVertex();
-            g_texcoord = vec2(0.0, 1.0); gl_Position = vp * (c + ivec4(chunk, 0) * 16); EmitVertex();
-            g_texcoord = vec2(1.0, 1.0); gl_Position = vp * (d + ivec4(chunk, 0) * 16); EmitVertex();
+            g_texcoord = vec2(0.0, 1.0); gl_Position = vp * (a + ivec4(chunk, 0) * 16); EmitVertex();
+            g_texcoord = vec2(1.0, 1.0); gl_Position = vp * (b + ivec4(chunk, 0) * 16); EmitVertex();
+            g_texcoord = vec2(0.0, 0.0); gl_Position = vp * (c + ivec4(chunk, 0) * 16); EmitVertex();
+            g_texcoord = vec2(1.0, 0.0); gl_Position = vp * (d + ivec4(chunk, 0) * 16); EmitVertex();
             EndPrimitive();
         }
     "#;
