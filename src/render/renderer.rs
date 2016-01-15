@@ -30,6 +30,7 @@ pub struct Renderer {
     text: Text,
     stats: bool,
     fill: bool,
+    chunk_buffer: ChunkBuffer,
     game: GameState,
 }
 
@@ -64,6 +65,7 @@ impl Renderer {
             stats: false,
             fill: true,
             game: GameState::new(),
+            chunk_buffer: ChunkBuffer::new(2),
             display: display,
         })
     }
@@ -85,9 +87,8 @@ impl Renderer {
             WireVertex { corner: [0.0, 0.0, 0.0] },
         ]).unwrap();
 
-        let mut chunk_buffer = ChunkBuffer::new(2);
         loop {
-            chunk_buffer.update(&self.display, &self.game, self.camera.get_chunk_pos());
+            self.chunk_buffer.update(&self.display, &self.game, self.camera.get_chunk_pos());
 
             {//pick from previous frame
                 let pick_res = self.picker.pick().map(|(c, b, f)| {
@@ -114,7 +115,7 @@ impl Renderer {
 
             let params = self.get_params();
 
-            for (pos, vb) in chunk_buffer.iter() {
+            for (pos, vb) in self.chunk_buffer.iter() {
                 let pos = [pos[0], pos[1], pos[2]];
                 self.picker.draw(
                     &self.display,
@@ -209,6 +210,14 @@ impl Renderer {
                     self.camera.add_phi((mouse_x - mid_x as i32) as f32 * MOUSE_SENSIVITY);
                     // screen coordinates decrease to the top, unlike theta
                     self.camera.add_theta((mid_y - mouse_y as i32) as f32 * MOUSE_SENSIVITY);
+                },
+                E::KeyboardInput(Pressed, _, Some(Add)) => {
+                    let n = self.chunk_buffer.get_view_dist();
+                    self.chunk_buffer.set_view_dist(n + 1);
+                },
+                E::KeyboardInput(Pressed, _, Some(Subtract)) => {
+                    let n = self.chunk_buffer.get_view_dist();
+                    self.chunk_buffer.set_view_dist(n - 1);
                 },
                 E::KeyboardInput(Pressed, _, Some(F1)) => self.fill = !self.fill,
                 E::KeyboardInput(Pressed, _, Some(F3)) => self.stats = ! self.stats,

@@ -41,4 +41,12 @@ impl ChunkBuffer {
     pub fn iter<'a>(&'a self) -> Vec<(ChunkPos, &'a VertexBuffer<FaceVertex>)> {
         self.buffer.iter().map(|(pos, vb)| (Point3::from_vec(*pos - self.center), vb)).collect()
     }
+
+    pub fn get_view_dist(&self) -> u8 {
+        self.view_dist
+    }
+
+    pub fn set_view_dist(&mut self, view_dist: u8) {
+        self.view_dist = ::std::cmp::max(2, view_dist);
+    }
 }
